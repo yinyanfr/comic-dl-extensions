@@ -1,0 +1,21 @@
+{
+  "name": "comic-dl-extensions",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "extensions/*"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "typecheck": "npm run typecheck --workspaces"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.4",
+    "comic-dl": "3.0.0-alpha",
+    "typescript": "~6.0.3"
+  }
+}
