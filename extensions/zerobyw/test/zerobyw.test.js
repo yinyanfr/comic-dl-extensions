@@ -55,7 +55,7 @@ function chapterHtml(
   } = {},
 ) {
   const metadata = {
-    chapterTitle: `Chapter ${id}`,
+    chapterTitle: domOrder ? "" : `Chapter ${id}`,
     kuid: workId,
     zjid: id,
     lockType: guest ? "login" : "vip",
@@ -77,7 +77,7 @@ function chapterHtml(
       ${domOrder ? "" : `const imageCount = ${locked ? 0 : broken ? 3 : 2};`}
     </script>
     <nav class="reader-breadcrumb"><a href="/pc/pc/">Browse</a>
-    <a href="../details/?kuid=${workId}">Series</a></nav>
+    <a href="../details/?kuid=${workId}">Series</a>${domOrder ? "<span>/</span><span>0</span>" : ""}</nav>
     <img class="manga-image" src="ignored.jpg">
     <div id="image-container">${images}</div>`;
 }

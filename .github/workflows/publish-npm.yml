@@ -1,0 +1,140 @@
+name: Publish extensions to npm
+
+on:
+  push:
+    branches: [main]
+    paths: ["extensions/*/package.json"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-release
+  queue: max
+
+jobs:
+  package:
+    if: github.repository == 'yinyanfr/comic-dl-extensions' && !github.event.created && !github.event.deleted
+    runs-on: ubuntu-latest
+    outputs:
+      releases: ${{ steps.release.outputs.releases }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Detect changed extension versions
+        id: release
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          node --input-type=module <<'JS'
+          import { execFileSync } from 'node:child_process';
+          import { appendFileSync } from 'node:fs';
+
+          function git(...args) {
+            return execFileSync('git', args, { encoding: 'utf8' });
+          }
+
+          function extensions(commit) {
+            return git('ls-tree', '-r', '--name-only', '-z', commit, '--', 'extensions/')
+              .split('\0')
+              .filter((path) => /^extensions\/[^/]+\/package\.json$/.test(path))
+              .map((path) => ({
+                ...JSON.parse(git('show', `${commit}:${path}`)),
+                directory: path.slice(0, -'/package.json'.length),
+              }));
+          }
+
+          const previous = new Map(
+            extensions(process.env.BEFORE).map(({ name, version }) => [name, version]),
+          );
+          const releases = extensions('HEAD')
+            .filter(({ name, version, private: isPrivate }) => !isPrivate && previous.get(name) !== version)
+            .map(({ name, version, directory }) => ({
+              name,
+              version,
+              directory,
+              tag: version.split('+')[0].includes('-') ? 'next' : 'latest',
+            }));
+          appendFileSync(process.env.GITHUB_OUTPUT, `releases=${JSON.stringify(releases)}\n`);
+          JS
+      - if: steps.release.outputs.releases != '[]'
+        env:
+          RELEASES: ${{ steps.release.outputs.releases }}
+        run: |
+          npm ci
+          npm run typecheck
+          npm test
+          node --input-type=module <<'JS'
+          import { execFileSync } from 'node:child_process';
+          import { mkdirSync } from 'node:fs';
+          import { join } from 'node:path';
+
+          for (const { directory } of JSON.parse(process.env.RELEASES)) {
+            const destination = join(process.env.RUNNER_TEMP, 'npm-release', directory);
+            mkdirSync(destination, { recursive: true });
+            execFileSync('npm', [
+              'pack', '--workspace', `./${directory}`, '--ignore-scripts',
+              '--pack-destination', destination,
+            ], { stdio: 'inherit' });
+          }
+          JS
+      - if: steps.release.outputs.releases != '[]'
+        uses: actions/upload-artifact@v7
+        with:
+          name: npm-packages
+          path: ${{ runner.temp }}/npm-release/
+          if-no-files-found: error
+
+  publish:
+    needs: package
+    if: needs.package.outputs.releases != '[]'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        release: ${{ fromJSON(needs.package.outputs.releases) }}
+    name: Publish ${{ matrix.release.name }}@${{ matrix.release.version }}
+    steps:
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - uses: actions/download-artifact@v8
+        with:
+          name: npm-packages
+      - name: Publish extension
+        env:
+          PACKAGE_NAME: ${{ matrix.release.name }}
+          VERSION: ${{ matrix.release.version }}
+          DIRECTORY: ${{ matrix.release.directory }}
+          DIST_TAG: ${{ matrix.release.tag }}
+        run: |
+          published=$(node --input-type=module <<'JS'
+          const name = encodeURIComponent(process.env.PACKAGE_NAME);
+          const version = encodeURIComponent(process.env.VERSION);
+          const response = await fetch(`https://registry.npmjs.org/${name}/${version}`, {
+            signal: AbortSignal.timeout(30_000),
+          });
+          if (!response.ok && response.status !== 404) {
+            throw new Error(`npm registry returned HTTP ${response.status}`);
+          }
+          console.log(response.ok);
+          JS
+          )
+          if [[ "$published" == true ]]; then
+            echo "$PACKAGE_NAME@$VERSION is already published."
+          else
+            # Leave latest implicit so npm refuses an older stable version.
+            args=(publish "./$DIRECTORY/"*.tgz --ignore-scripts --access public)
+            if [[ "$DIST_TAG" != latest ]]; then args+=(--tag "$DIST_TAG"); fi
+            npm "${args[@]}"
+          fi
