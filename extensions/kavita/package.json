@@ -1,0 +1,35 @@
+{
+  "name": "@comic-dl/kavita",
+  "version": "0.1.0",
+  "description": "Kavita source extension for comic-dl",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yinyanfr/comic-dl-extensions.git",
+    "directory": "extensions/kavita"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    "types": "./dist/index.d.ts",
+    "import": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.en.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepack": "npm run build",
+    "test": "npm run build && node --test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@zip.js/zip.js": "^2.25.0"
+  }
+}

@@ -1,0 +1,21 @@
+# Kavita
+
+[English](README.en.md)
+
+`@comic-dl/kavita` 是 [comic-dl](https://github.com/yinyanfr/comic-dl) 的自托管 Kavita 书库源。它通过 [Kavita REST API](https://www.kavitareader.com/docs/api) 按作品名搜索、列出各卷的章节和番外，并下载为 CBZ。支持服务端能逐页提供图片的漫画，也会请求服务端将 PDF 提取为图片；EPUB 不受支持。
+
+## 使用
+
+按 [comic-dl 快速入门](https://yinyanfr.github.io/comic-dl/guide/quickstart/) 安装 CLI，并在 Kavita 的「用户设置 → Manage Auth Keys」生成 Auth Key：
+
+```sh
+comic-dl add @comic-dl/kavita
+export COMIC_DL_KAVITA_URL='https://nas.example/kavita'
+export COMIC_DL_KAVITA_API_KEY='<Kavita Auth Key>'
+
+comic-dl search '作品名' --source kavita
+comic-dl list "$COMIC_DL_KAVITA_URL/library/LIBRARY_ID/series/SERIES_ID"
+comic-dl chapter "$COMIC_DL_KAVITA_URL/library/LIBRARY_ID/series/SERIES_ID/manga/CHAPTER_ID" -o ~/manga
+```
+
+将示例地址、密钥和 ID 换成自己服务器上的值。`COMIC_DL_KAVITA_URL` 包含反向代理子路径，但不能带 `/api`、查询或凭据。也可用 `--source kavita` 加数字作品或章节 ID；完整链接在匹配该地址时会自动选源。Kavita 的图片接口使用 `apiKey` 查询参数；服务端或反向代理记录查询参数时也可能记录这个密钥。

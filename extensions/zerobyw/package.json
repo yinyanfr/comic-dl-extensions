@@ -1,6 +1,6 @@
 {
   "name": "@comic-dl/zerobyw",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Zerobyw source extension for comic-dl",
   "repository": {
     "type": "git",
@@ -20,7 +20,8 @@
     "import": "./dist/index.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.en.md"
   ],
   "scripts": {
     "build": "tsc",
