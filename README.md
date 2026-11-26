@@ -24,8 +24,4 @@ CLI 安装示例：`comic-dl add @comic-dl/zerobyw`。库用法与 Zerobyw 的 C
 npm pack --workspace @comic-dl/zerobyw
 ```
 
-## 发布到 npm
-
-用 `npm version <版本> --workspace @comic-dl/zerobyw --no-git-tag-version` 更新扩展版本，并提交扩展的 `package.json` 和根目录的 `package-lock.json`。推送到 `main` 后，工作流会检查整个仓库，但只打包并发布版本发生变化的扩展。预发布使用 `next`，正式版使用 `latest`，已有版本跳过。
-
-工作流合入后，为每个 npm 包分别添加 [GitHub Actions Trusted Publisher](https://docs.npmjs.com/trusted-publishers/)：所有者 `yinyanfr`、仓库 `comic-dl-extensions`、工作流文件 `publish-npm.yml`，环境留空，并启用直接发布（`npm publish`）。无需 npm Token。新的信任绑定必须在两天内完成首次发布；全新包须先手动发布首版，才能配置自动发布。
+维护者请参阅 [npm 发布指南](docs/releasing.md)。
