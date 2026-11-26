@@ -1,6 +1,6 @@
 {
   "name": "@comic-dl/zerobyw",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Zerobyw source extension for comic-dl",
   "repository": {
     "type": "git",
