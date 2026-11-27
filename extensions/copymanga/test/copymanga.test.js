@@ -10,6 +10,7 @@ import { env, execPath } from "node:process";
 import { test } from "node:test";
 import { fileURLToPath, URL } from "node:url";
 import { promisify } from "node:util";
+import { createDownloader } from "comic-dl";
 import { sourceExtensionApi } from "comic-dl/extension";
 import adapter from "../dist/index.js";
 
@@ -69,21 +70,23 @@ test("custom website and API use separate transports, and browse forwards server
     return new Response(`<div class="exemptComic-box" total="80"
       list="[{&#x27;path_word&#x27;: &#x27;example&#x27;, &#x27;name&#x27;: &#x27;Sorted&#x27;}]"></div>`);
   });
-  const source = adapter.create(sourceExtensionApi, settings);
-  const signal = new AbortController().signal;
-  assert.equal(adapter.matchesUrl(new URL(work), "series", settings), true);
+  const downloader = createDownloader().use(adapter, settings);
+  assert.deepEqual(downloader.validateSourceSettings("copymanga"), settings);
+  assert.equal(downloader.resolveSource(work), "copymanga");
   assert.equal(
-    adapter.matchesUrl(
-      new URL(`${settings["site-url"]}/comic/example`),
-      "series",
-      settings,
-    ),
-    true,
+    downloader.resolveSource(`${settings["site-url"]}/comic/example`),
+    "copymanga",
   );
-  assert.deepEqual(await source.catalogChoices("theme", "browse", signal), [
-    { id: "maoxian", label: "Adventure" },
-  ]);
-  const page = await source.search("", 2, signal, {
+  const catalog = await downloader.catalogOptions("copymanga");
+  assert.deepEqual(catalog.filters.theme, {
+    type: "select",
+    label: "Theme",
+    choices: [{ id: "maoxian", label: "Adventure" }],
+  });
+  const signal = new AbortController().signal;
+  const page = await downloader.search("", {
+    source: "copymanga",
+    page: 2,
     sort: "popular",
     filters: { theme: "maoxian", status: "completed", region: "japan" },
   });
@@ -93,6 +96,7 @@ test("custom website and API use separate transports, and browse forwards server
     ],
     hasNext: true,
   });
+  const source = adapter.create(sourceExtensionApi, settings);
   assert.equal(
     (await source.getChapter(`${work}/chapter/${first}`, signal)).workId,
     comic.uuid,

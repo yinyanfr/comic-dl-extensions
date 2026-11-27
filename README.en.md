@@ -23,6 +23,8 @@ CopyManga, Zerobyw, Komga, and Kavita introduced runtime settings in extension v
 
 Each extension's README covers its settings, authentication, and commands. To register extensions directly from Node.js, see the [library guide](https://yinyanfr.github.io/comic-dl/en/guide/library/).
 
+See the [changelog](CHANGELOG.md) for release history by package version.
+
 ## Development
 
 Use Node.js 24. From the repository root, run:
@@ -33,7 +35,7 @@ npm run typecheck
 npm test
 ```
 
-Each extension uses offline fixtures to test source behavior. To test with an unpublished core build, run `npm pack` in the core repository, then run `npm install --no-save --package-lock=false /path/to/comic-dl-VERSION.tgz` in this repository, substituting the generated filename.
+Development and offline tests use `comic-dl@3.2.0`. Extensions import the public API v1 types, including source settings and catalog options, from `comic-dl/extension`. To test with an unpublished core build, run `npm pack` in the core repository, then run `npm install --no-save --package-lock=false /path/to/comic-dl-VERSION.tgz` in this repository, substituting the generated filename.
 
 Inspect an extension's package independently:
 

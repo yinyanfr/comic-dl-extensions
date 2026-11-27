@@ -1,9 +1,7 @@
 import type {
-  ConfigurableSourceExtension,
-  OptionValues,
-} from "../../source-options.js";
-import type {
   Chapter,
+  ChapterSource,
+  OptionValues,
   Page,
   SourceExtension,
   SourceExtensionApi,
@@ -124,7 +122,7 @@ function inputIds(
 function create(
   api: SourceExtensionApi,
   settings: OptionValues = {},
-): ReturnType<SourceExtension["create"]> {
+): ChapterSource {
   const base = serverUrl(settings["server-url"]?.toString());
   const key = process.env.COMIC_DL_KAVITA_API_KEY?.trim();
   if (!base || !key) {
@@ -389,7 +387,7 @@ function create(
   };
 }
 
-const extension: ConfigurableSourceExtension = {
+const extension: SourceExtension = {
   apiVersion: 1,
   id: "kavita",
   settings: {
@@ -406,4 +404,4 @@ const extension: ConfigurableSourceExtension = {
   create,
 };
 
-export default extension as SourceExtension;
+export default extension;

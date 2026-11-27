@@ -8,4 +8,6 @@ From the repository root, bump the version of the extension you want to publish.
 npm version patch --workspace @comic-dl/zerobyw --no-git-tag-version
 ```
 
-You can also replace `patch` with an exact version. Commit the extension's `package.json` and the root `package-lock.json`. A push to `main` that modifies `extensions/*/package.json` triggers the [release workflow](../.github/workflows/publish-npm.yml). The workflow compares versions before and after the entire push. If any versions changed, it runs repository-wide checks and packages and publishes only the affected extensions. Prereleases use `next`, stable releases use `latest`, and versions already on npm are skipped at the publish step.
+You can also replace `patch` with an exact version. Add an English release entry to the [changelog](../CHANGELOG.md) listing each affected npm package and its exact version. Move the changes shipping in that release out of `Unreleased`. Commit the changelog, the extension's `package.json`, and the root `package-lock.json` together.
+
+A push to `main` that modifies `extensions/*/package.json` triggers the [release workflow](../.github/workflows/publish-npm.yml). The workflow compares versions before and after the entire push. If any versions changed, it runs repository-wide checks and packages and publishes only the affected extensions. Prereleases use `next`, stable releases use `latest`, and versions already on npm are skipped at the publish step.

@@ -347,7 +347,7 @@ test("Zerobyw accepts chapter links without download metadata and classifies rea
   });
   await assert.rejects(run("chapter", chapterLink(108)), {
     code: 1,
-    stderr: /^comic-dl: Zerobyw refused to open the chapter \(site notice\)\n$/,
+    stderr: "comic-dl: zerobyw: could not resolve the chapter: Zerobyw refused to open the chapter (site notice)\n",
   });
 });
 

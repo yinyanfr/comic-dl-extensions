@@ -5,14 +5,11 @@ import { extname } from "node:path/posix";
 import type {
   Chapter,
   ChapterSource,
+  OptionValues,
   Page,
   SourceExtension,
   SourceExtensionApi,
 } from "comic-dl/extension";
-import type {
-  ConfigurableSourceExtension,
-  OptionValues,
-} from "../../source-options.js";
 
 const defaultOrigin = "https://www.zerobyw33.com";
 const defaultImageOrigin = "https://tupa.zerobyw33.com";
@@ -471,7 +468,7 @@ function createZerobywSource(
   };
 }
 
-const extension: ConfigurableSourceExtension = {
+const extension: SourceExtension = {
   apiVersion: 1,
   id: "zerobyw",
   settings: {
@@ -503,4 +500,4 @@ const extension: ConfigurableSourceExtension = {
   },
 };
 
-export default extension as SourceExtension;
+export default extension;

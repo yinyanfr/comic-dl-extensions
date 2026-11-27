@@ -23,9 +23,11 @@ CopyManga、Zerobyw、Komga 和 Kavita 从扩展 `0.2.0` 起提供运行时设�
 
 各扩展 README 说明对应的设置、认证和命令。用 Node.js 代码直接注册扩展，参见 [库使用指南](https://yinyanfr.github.io/comic-dl/guide/library/)。
 
+各包版本和变更见 [Changelog（英文）](CHANGELOG.md)。
+
 ## 开发
 
-使用 Node.js 24。在仓库根目录运行 `npm ci`、`npm run typecheck` 和 `npm test`。各源使用离线样本验证站点行为。如果要验证尚未发布的核心版本，可以在核心仓库运行 `npm pack`，再在此仓库执行 `npm install --no-save --package-lock=false /path/to/comic-dl-VERSION.tgz`（替换为实际生成的文件），用本地打包产物代替 npm 版本。
+使用 Node.js 24。在仓库根目录运行 `npm ci`、`npm run typecheck` 和 `npm test`。开发和离线测试使用 `comic-dl@3.2.0`，扩展从 `comic-dl/extension` 导入 API v1 的公开类型，包括来源设置和目录选项。如果要验证尚未发布的核心版本，可以在核心仓库运行 `npm pack`，再在此仓库执行 `npm install --no-save --package-lock=false /path/to/comic-dl-VERSION.tgz`（替换为实际生成的文件），用本地打包产物代替 npm 版本。
 
 单独检查扩展的打包产物：
 

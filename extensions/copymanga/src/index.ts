@@ -1,15 +1,13 @@
 import { load } from 'cheerio/slim';
 import type {
   Chapter,
+  ChapterSource,
   ImageExtension,
+  OptionValues,
   Page,
   SourceExtension,
   SourceExtensionApi,
 } from 'comic-dl/extension';
-import type {
-  ConfigurableSourceExtension,
-  OptionValues,
-} from '../../source-options.js';
 import JSON5 from 'json5';
 import { createHash } from 'node:crypto';
 import { extname } from 'node:path/posix';
@@ -110,7 +108,7 @@ function offsetFor(page: number, size: number) {
 function create(
   api: SourceExtensionApi,
   settings: OptionValues = {},
-): ReturnType<ConfigurableSourceExtension['create']> {
+): ChapterSource {
   const site = origin(settings, 'site-url', defaultSite);
   const apiOrigin = origin(settings, 'api-url', defaultApi);
   const readApi = api.createSourceHttp({
@@ -454,7 +452,7 @@ const catalogRegion = new Map([
   ['western', '2'],
 ]);
 
-const extension: ConfigurableSourceExtension = {
+const extension: SourceExtension = {
   apiVersion: 1,
   id: 'copymanga',
   settings: {
@@ -510,4 +508,4 @@ const extension: ConfigurableSourceExtension = {
   create,
 };
 
-export default extension as SourceExtension;
+export default extension;

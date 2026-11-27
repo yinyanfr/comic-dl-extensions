@@ -1,9 +1,7 @@
 import type {
-  ConfigurableSourceExtension,
-  OptionValues,
-} from "../../source-options.js";
-import type {
   Chapter,
+  ChapterSource,
+  OptionValues,
   Page,
   SourceExtension,
   SourceExtensionApi,
@@ -92,7 +90,7 @@ function inputId(input: string, base: URL, kind: "series" | "chapter") {
 function create(
   api: SourceExtensionApi,
   settings: OptionValues = {},
-): ReturnType<SourceExtension["create"]> {
+): ChapterSource {
   const base = serverUrl(settings["server-url"]?.toString());
   const key = process.env.COMIC_DL_KOMGA_API_KEY?.trim();
   if (!base || !key) {
@@ -286,7 +284,7 @@ function create(
   };
 }
 
-const extension: ConfigurableSourceExtension = {
+const extension: SourceExtension = {
   apiVersion: 1,
   id: "komga",
   settings: {
@@ -303,4 +301,4 @@ const extension: ConfigurableSourceExtension = {
   create,
 };
 
-export default extension as SourceExtension;
+export default extension;
