@@ -19,3 +19,14 @@ comic-dl chapter "$COMIC_DL_KOMGA_URL/book/BOOK_ID/read" -o ~/manga
 ```
 
 将示例地址、密钥和 ID 换成自己服务器上的值。`COMIC_DL_KOMGA_URL` 包含反向代理子路径，但不能带 `/api`、查询或凭据。也可用 `--source komga` 加作品或书籍的短 ID；完整链接在匹配该地址时会自动选源。
+
+## 运行时设置
+
+`@comic-dl/komga` 0.2.0 搭配 `comic-dl` 3.2.0 或更新版本时，可以用 `--set` 临时设置服务器地址，或把 `server-url` 保存到 [CLI 配置](https://yinyanfr.github.io/comic-dl/reference/config/)的 `sourceSettings.komga`。密钥仍由 `COMIC_DL_KOMGA_API_KEY` 提供：
+
+```sh
+export COMIC_DL_KOMGA_API_KEY_URL='https://nas.example/komga'
+comic-dl search '作品名' --source komga --set "komga.server-url=$COMIC_DL_KOMGA_API_KEY_URL"
+```
+
+密钥绑定地址必须匹配完整服务器地址，包括反向代理子路径。未设置 `COMIC_DL_KOMGA_API_KEY_URL` 时，绑定沿用 `COMIC_DL_KOMGA_URL`；如果只在 CLI 配置中设置了服务器地址，仍需明确提供绑定地址。

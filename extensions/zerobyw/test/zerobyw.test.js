@@ -12,6 +12,8 @@ import { env, execPath } from "node:process";
 import { test } from "node:test";
 import { fileURLToPath, URL } from "node:url";
 import { promisify } from "node:util";
+import { sourceExtensionApi } from "comic-dl/extension";
+import adapter from "../dist/index.js";
 
 const exec = promisify(execFile);
 const require = createRequire(import.meta.url);
@@ -43,6 +45,53 @@ function seriesHtml(cards, guest, includeMetadata = true) {
         .join("")}</div>
     </section>`;
 }
+
+test("an old series link keeps its ID on a custom domain without forwarding the old Cookie", async (t) => {
+  const settings = {
+    "site-url": "https://zero.example",
+    "image-url": "https://images.example",
+  };
+  const input = `${site}/pc/details/?kuid=1`;
+  const cookieOrigin = "COMIC_DL_ZEROBYW_COOKIE_ORIGIN";
+  const cookieName = "COMIC_DL_ZEROBYW_COOKIE";
+  for (const name of [cookieOrigin, cookieName]) {
+    const saved = env[name];
+    t.after(() => {
+      if (saved === undefined) delete env[name];
+      else env[name] = saved;
+    });
+  }
+  env[cookieName] = cookie;
+  delete env[cookieOrigin];
+  const fetch = t.mock.method(globalThis, "fetch", async (target, options) => {
+    const url = new URL(target);
+    assert.equal(url.origin, settings["site-url"]);
+    const headers = new Headers(options.headers);
+    if (url.pathname === "/pc/pc/") {
+      assert.equal(headers.has("cookie"), false);
+      return new Response(
+        '<main><a href="/pc/details/?kuid=1"><h3>Example</h3></a></main>',
+      );
+    }
+    assert.equal(url.href, `${settings["site-url"]}/pc/details/?kuid=1`);
+    assert.equal(headers.get("cookie"), cookie);
+    return new Response(seriesHtml([[2, "Second"]], false));
+  });
+  const signal = new AbortController().signal;
+  const guest = adapter.create(sourceExtensionApi, settings);
+  assert.equal(adapter.matchesUrl(new URL(input), "series", settings), true);
+  await assert.rejects(guest.getSeries(input, signal), /session missing/);
+  assert.equal(fetch.mock.callCount(), 0);
+  assert.equal(
+    (await guest.search("", 1, signal)).results[0].url,
+    `${settings["site-url"]}/pc/details/?kuid=1`,
+  );
+  env[cookieOrigin] = settings["site-url"];
+  const authenticated = adapter.create(sourceExtensionApi, settings);
+  const series = await authenticated.getSeries(input, signal);
+  assert.equal(series.id, "1");
+  assert.equal(series.chapters[0].id, "2");
+});
 
 function chapterHtml(
   id,

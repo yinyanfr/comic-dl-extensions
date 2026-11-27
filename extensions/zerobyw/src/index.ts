@@ -9,13 +9,49 @@ import type {
   SourceExtension,
   SourceExtensionApi,
 } from "comic-dl/extension";
+import type {
+  ConfigurableSourceExtension,
+  OptionValues,
+} from "../../source-options.js";
 
-const origin = "https://www.zerobyw33.com";
-const imageOrigin = "https://tupa.zerobyw33.com";
-const imageOrigins = [origin, imageOrigin];
+const defaultOrigin = "https://www.zerobyw33.com";
+const defaultImageOrigin = "https://tupa.zerobyw33.com";
 const catalogPath = "/pc/pc/";
 const cookieVariable = "COMIC_DL_ZEROBYW_COOKIE";
-const loginMessage = `Zerobyw session missing or expired; set ${cookieVariable} to a fresh Cookie`;
+const cookieOriginVariable = "COMIC_DL_ZEROBYW_COOKIE_ORIGIN";
+const loginMessage = `Zerobyw session missing or expired; set ${cookieVariable} to a fresh Cookie. For a custom site, also set ${cookieOriginVariable} to its HTTPS origin`;
+
+function httpsOrigin(value: string | number | boolean) {
+  const url = URL.parse(String(value));
+  if (
+    url?.protocol === "https:" &&
+    url.pathname === "/" &&
+    !url.username &&
+    !url.password &&
+    !url.search &&
+    !url.hash
+  ) {
+    return url.origin;
+  }
+}
+
+function configuredOrigin(
+  settings: OptionValues,
+  key: string,
+  fallback: string,
+) {
+  const origin = httpsOrigin(settings[key] ?? fallback);
+  if (!origin) throw new Error(`Zerobyw ${key} must be an HTTPS origin`);
+  return origin;
+}
+
+function inputOrigins(settings: OptionValues, origin: string) {
+  return [
+    origin,
+    defaultOrigin,
+    configuredOrigin(settings, "previous-site-url", defaultOrigin),
+  ];
+}
 
 function siteId(value: unknown): string | undefined {
   const id =
@@ -27,8 +63,8 @@ function siteId(value: unknown): string | undefined {
 
 function siteUrl(
   input: string,
-  base?: URL,
-  origins: readonly string[] = [origin],
+  base: URL | undefined,
+  origins: readonly string[],
 ) {
   const url = URL.parse(input, base?.href);
   if (!url || url.username || url.password) {
@@ -49,21 +85,6 @@ function pageId(url: URL | null, page: "details" | "view") {
   if (url && (url.pathname === base || url.pathname === `${base}index.php`)) {
     return siteId(url.searchParams.get(page === "details" ? "kuid" : "zjid"));
   }
-}
-
-function requestUrl(input: string, page: "details" | "view") {
-  const url = siteUrl(input);
-  const id = pageId(url, page);
-  if (!id) {
-    throw new Error(
-      `Expected a Zerobyw ${page === "details" ? "series" : "chapter"} URL on ${origin}`,
-    );
-  }
-  const path =
-    page === "details"
-      ? `/pc/details/?kuid=${id}`
-      : `/pc/view/index.php?zjid=${id}`;
-  return { id, url: new URL(path, origin) };
 }
 
 function scriptValue($: CheerioAPI, declaration: RegExp): unknown {
@@ -94,14 +115,43 @@ function createZerobywSource(
     RestrictedChapterError,
     SourceHttpError,
   }: SourceExtensionApi,
+  settings: OptionValues,
 ): ChapterSource {
+  const origin = configuredOrigin(settings, "site-url", defaultOrigin);
+  const acceptedInputs = inputOrigins(settings, origin);
+  const imageOrigins = [
+    origin,
+    configuredOrigin(settings, "image-url", defaultImageOrigin),
+  ];
+  const readSiteUrl = (input: string, base: URL) =>
+    siteUrl(input, base, [origin]);
+
+  function requestUrl(input: string, page: "details" | "view") {
+    const id = pageId(siteUrl(input, undefined, acceptedInputs), page);
+    if (!id) {
+      throw new Error(
+        `Expected a Zerobyw ${page === "details" ? "series" : "chapter"} URL on ${origin}`,
+      );
+    }
+    const path =
+      page === "details"
+        ? `/pc/details/?kuid=${id}`
+        : `/pc/view/index.php?zjid=${id}`;
+    return { id, url: new URL(path, origin) };
+  }
   function restricted() {
     return new RestrictedChapterError("Zerobyw marks this chapter as VIP-only");
   }
 
   const cookie = value?.trim().replace(/^Cookie:[ \t]*/i, "");
+  const cookieOrigin = httpsOrigin(
+    process.env[cookieOriginVariable] ?? defaultOrigin,
+  );
   const hasCookie =
-    cookie && !/[^\x20-\x7e]/.test(cookie) && cookie.includes("=");
+    cookieOrigin === origin &&
+    cookie &&
+    !/[^\x20-\x7e]/.test(cookie) &&
+    cookie.includes("=");
   const readHtml = createSourceHttp({
     credentialHeaders: hasCookie ? { Cookie: cookie } : {},
     credentialOrigins: [origin],
@@ -164,7 +214,7 @@ function createZerobywSource(
     const workId = $(".reader-breadcrumb a")
       .toArray()
       .map((anchor) =>
-        pageId(siteUrl($(anchor).attr("href") ?? "", finalUrl), "details"),
+        pageId(readSiteUrl($(anchor).attr("href") ?? "", finalUrl), "details"),
       )
       .find((id) => id !== undefined);
     if (
@@ -265,7 +315,7 @@ function createZerobywSource(
       const results = new Map<string, { title: string; url: string }>();
       for (const link of links) {
         const id = pageId(
-          siteUrl($(link).attr("href") ?? "", finalUrl),
+          readSiteUrl($(link).attr("href") ?? "", finalUrl),
           "details",
         );
         const heading = $(link).find("h3").first().text().trim();
@@ -286,7 +336,7 @@ function createZerobywSource(
       const hasNext =
         results.size > 0 &&
         links.some((link) => {
-          const next = siteUrl($(link).attr("href") ?? "", finalUrl);
+          const next = readSiteUrl($(link).attr("href") ?? "", finalUrl);
           return (
             next?.pathname === catalogPath &&
             /下一[页頁]/.test($(link).text()) &&
@@ -323,7 +373,7 @@ function createZerobywSource(
           const href = $(element).attr("href");
           return {
             title: $(element).text().trim(),
-            id: href ? pageId(siteUrl(href, finalUrl), "view") : undefined,
+            id: href ? pageId(readSiteUrl(href, finalUrl), "view") : undefined,
             locked:
               !href &&
               /^app\.showLockTip\(['"]vip['"]\);?$/.test(
@@ -421,15 +471,36 @@ function createZerobywSource(
   };
 }
 
-const extension: SourceExtension = {
+const extension: ConfigurableSourceExtension = {
   apiVersion: 1,
   id: "zerobyw",
-  matchesUrl(url, kind) {
-    return !!pageId(siteUrl(url.href), kind === "series" ? "details" : "view");
+  settings: {
+    "site-url": { type: "url", label: "Website", default: defaultOrigin },
+    "image-url": {
+      type: "url",
+      label: "Image host",
+      default: defaultImageOrigin,
+    },
+    "previous-site-url": {
+      type: "url",
+      label: "Previous website (input links only)",
+    },
   },
-  create(api) {
-    return createZerobywSource(process.env[cookieVariable], api);
+  validateSettings(settings) {
+    configuredOrigin(settings, "site-url", defaultOrigin);
+    configuredOrigin(settings, "image-url", defaultImageOrigin);
+    configuredOrigin(settings, "previous-site-url", defaultOrigin);
+  },
+  matchesUrl(url, kind, settings = {}) {
+    const origin = configuredOrigin(settings, "site-url", defaultOrigin);
+    return !!pageId(
+      siteUrl(url.href, undefined, inputOrigins(settings, origin)),
+      kind === "series" ? "details" : "view",
+    );
+  },
+  create(api, settings = {}) {
+    return createZerobywSource(process.env[cookieVariable], api, settings);
   },
 };
 
-export default extension;
+export default extension as SourceExtension;

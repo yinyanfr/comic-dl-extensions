@@ -1,4 +1,8 @@
 import type {
+  ConfigurableSourceExtension,
+  OptionValues,
+} from "../../source-options.js";
+import type {
   Chapter,
   Page,
   SourceExtension,
@@ -42,8 +46,8 @@ const imageTypes: ReadonlyMap<string, Page["extension"]> = new Map([
   ["image/webp", "webp"],
 ]);
 
-function serverUrl() {
-  const url = URL.parse(process.env.COMIC_DL_KOMGA_URL ?? "");
+function serverUrl(input = process.env.COMIC_DL_KOMGA_URL ?? "") {
+  const url = URL.parse(input);
   if (
     !url ||
     !["http:", "https:"].includes(url.protocol) ||
@@ -87,11 +91,20 @@ function inputId(input: string, base: URL, kind: "series" | "chapter") {
 
 function create(
   api: SourceExtensionApi,
+  settings: OptionValues = {},
 ): ReturnType<SourceExtension["create"]> {
-  const base = serverUrl();
+  const base = serverUrl(settings["server-url"]?.toString());
   const key = process.env.COMIC_DL_KOMGA_API_KEY?.trim();
   if (!base || !key) {
-    throw new Error("Set COMIC_DL_KOMGA_URL and COMIC_DL_KOMGA_API_KEY");
+    throw new Error(
+      "Set Komga server-url (or COMIC_DL_KOMGA_URL) and COMIC_DL_KOMGA_API_KEY",
+    );
+  }
+  const keyBase = serverUrl(process.env.COMIC_DL_KOMGA_API_KEY_URL);
+  if (keyBase?.href !== base.href) {
+    throw new Error(
+      "Bind the Komga API key to the configured server with COMIC_DL_KOMGA_API_KEY_URL (or COMIC_DL_KOMGA_URL)",
+    );
   }
   const authHeaders = { "X-API-Key": key, Accept: "application/json, image/*" };
 
@@ -273,14 +286,21 @@ function create(
   };
 }
 
-const extension: SourceExtension = {
+const extension: ConfigurableSourceExtension = {
   apiVersion: 1,
   id: "komga",
-  matchesUrl(input, kind) {
-    const base = serverUrl();
+  settings: {
+    "server-url": {
+      type: "url",
+      label: "Server URL",
+      env: "COMIC_DL_KOMGA_URL",
+    },
+  },
+  matchesUrl(input, kind, settings = {}) {
+    const base = serverUrl(settings["server-url"]?.toString());
     return !!base && !!linkId(input, base, kind);
   },
   create,
 };
 
-export default extension;
+export default extension as SourceExtension;

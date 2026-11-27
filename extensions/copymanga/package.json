@@ -1,6 +1,6 @@
 {
   "name": "@comic-dl/copymanga",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "CopyManga source extension for comic-dl",
   "repository": {
     "type": "git",

@@ -6,12 +6,16 @@ import type {
   SourceExtension,
   SourceExtensionApi,
 } from 'comic-dl/extension';
+import type {
+  ConfigurableSourceExtension,
+  OptionValues,
+} from '../../source-options.js';
 import JSON5 from 'json5';
 import { createHash } from 'node:crypto';
 import { extname } from 'node:path/posix';
 
-const site = 'https://www.copy20.com';
-const apiOrigin = 'https://api.manga2025.com';
+const defaultSite = 'https://www.copy20.com';
+const defaultApi = 'https://api.manga2025.com';
 const apiHeaders = {
   Accept: 'application/json',
   platform: '1',
@@ -54,17 +58,17 @@ function integer(value: unknown, field: string): number {
   return value;
 }
 
-function workUrl(slug: string) {
+function workUrl(slug: string, site: string) {
   return `${site}/comic/${slug}`;
 }
 
-function parseUrl(url: URL) {
+function parseUrl(url: URL, site: string) {
   const path = url.pathname.match(
     /^\/comic\/([a-z0-9_-]+)(?:\/chapter\/([a-f0-9-]+))?\/?$/i,
   );
   const group = url.searchParams.get('group') ?? 'default';
   if (
-    url.origin !== site ||
+    (url.origin !== site && url.origin !== defaultSite) ||
     url.username ||
     url.password ||
     !path ||
@@ -76,27 +80,25 @@ function parseUrl(url: URL) {
   return { slug: path[1], chapterId: path[2]?.toLowerCase(), group };
 }
 
-function parseInput(input: string) {
+function parseInput(input: string, site: string) {
   if (segment.test(input)) {
     return { slug: input, chapterId: undefined, group: 'default' };
   }
   const url = URL.parse(input);
-  const parsed = url && parseUrl(url);
+  const parsed = url && parseUrl(url, site);
   if (!parsed) {
-    throw new Error(
-      'Expected a CopyManga work ID, copy20.com series URL or chapter URL',
-    );
+    throw new Error('Expected a CopyManga work ID, series URL or chapter URL');
   }
   return parsed;
 }
 
-function searchResults(items: readonly unknown[]) {
+function searchResults(items: readonly unknown[], site: string) {
   const results = new Map<string, { title: string; url: string }>();
   for (const item of items) {
     const comic = record(item);
     const slug = text(comic.path_word, 'work ID', segment);
     const title = text(comic.name, 'work title');
-    results.set(slug, { title, url: workUrl(slug) });
+    results.set(slug, { title, url: workUrl(slug, site) });
   }
   return [...results.values()];
 }
@@ -107,9 +109,17 @@ function offsetFor(page: number, size: number) {
 
 function create(
   api: SourceExtensionApi,
-): ReturnType<SourceExtension['create']> {
+  settings: OptionValues = {},
+): ReturnType<ConfigurableSourceExtension['create']> {
+  const site = origin(settings, 'site-url', defaultSite);
+  const apiOrigin = origin(settings, 'api-url', defaultApi);
   const readApi = api.createSourceHttp({
-    requestHeaders: apiHeaders,
+    requestHeaders: {
+      ...apiHeaders,
+      'User-Agent': String(
+        settings['api-user-agent'] ?? apiHeaders['User-Agent'],
+      ),
+    },
     credentialHeaders: {},
     credentialOrigins: [],
     allowedOrigins: [apiOrigin],
@@ -120,8 +130,7 @@ function create(
     allowedOrigins: [site],
   });
 
-  async function readResults(url: URL, signal: AbortSignal) {
-    const read = url.origin === apiOrigin ? readApi : readWeb;
+  async function readResults(url: URL, signal: AbortSignal, read = readApi) {
     const { bytes } = await read(url, signal);
     let payload: unknown;
     try {
@@ -228,7 +237,31 @@ function create(
 
   return {
     id: 'copymanga',
-    async search(query, page, signal) {
+    async catalogChoices(filter, _mode, signal) {
+      if (filter !== 'theme')
+        throw new Error('Unsupported CopyManga catalog filter');
+      const { bytes } = await readWeb(new URL('/comics?limit=1', site), signal);
+      const $ = load(decoder.decode(bytes));
+      const choices = new Map<string, string>();
+      for (const link of $('a[href]')) {
+        const url = URL.parse($(link).attr('href') ?? '', site);
+        const id = url?.searchParams.get('theme');
+        const label = $(link).find('dd').text().trim();
+        if (
+          url?.origin === site &&
+          url.pathname === '/comics' &&
+          id &&
+          segment.test(id) &&
+          label
+        ) {
+          choices.set(id, label);
+        }
+      }
+      if (!choices.size)
+        throw new Error('Could not read CopyManga catalog themes');
+      return [...choices].map(([id, label]) => ({ id, label }));
+    },
+    async search(query, page, signal, options) {
       const keyword = query.trim();
       if (keyword) {
         const size = 12;
@@ -241,10 +274,10 @@ function create(
           limit: String(size),
           offset: String(offset),
         }).toString();
-        const data = await readResults(url, signal);
+        const data = await readResults(url, signal, readWeb);
         const items = list(data.list);
         return {
-          results: searchResults(items),
+          results: searchResults(items, site),
           hasNext:
             items.length > 0 &&
             offset + items.length < integer(data.total, 'search total'),
@@ -252,10 +285,20 @@ function create(
       }
       const size = 50;
       const offset = offsetFor(page, size);
-      const url = new URL(
-        `/comics?ordering=-datetime_updated&limit=${size}&offset=${offset}`,
-        site,
-      );
+      const url = new URL('/comics', site);
+      const ordering = catalogOrder.get(options?.sort ?? 'updated');
+      if (!ordering) throw new Error('Unsupported CopyManga sort');
+      url.search = new URLSearchParams({
+        ordering,
+        limit: String(size),
+        offset: String(offset),
+      }).toString();
+      const { theme, status, region } = options?.filters ?? {};
+      if (typeof theme === 'string') url.searchParams.set('theme', theme);
+      if (typeof status === 'string')
+        url.searchParams.set('status', catalogStatus.get(status)!);
+      if (typeof region === 'string')
+        url.searchParams.set('region', catalogRegion.get(region)!);
       const { bytes } = await readWeb(url, signal);
       const box = load(decoder.decode(bytes))('.exemptComic-box').first();
       const raw = box.attr('list');
@@ -271,14 +314,14 @@ function create(
       }
       const items = list(payload);
       return {
-        results: searchResults(items),
+        results: searchResults(items, site),
         hasNext:
           items.length > 0 &&
           offset + items.length < integer(Number(total), 'catalog total'),
       };
     },
     async getSeries(input, signal) {
-      const { slug, chapterId, group } = parseInput(input);
+      const { slug, chapterId, group } = parseInput(input, site);
       if (chapterId) {
         throw new Error(
           'Expected a CopyManga series URL; use chapter for a direct chapter URL',
@@ -349,7 +392,7 @@ function create(
       };
     },
     async getChapter(input, signal) {
-      const { slug, chapterId } = parseInput(input);
+      const { slug, chapterId } = parseInput(input, site);
       if (!chapterId) {
         throw new Error('Expected a CopyManga chapter URL');
       }
@@ -379,14 +422,92 @@ function create(
   };
 }
 
-const extension: SourceExtension = {
+function origin(settings: OptionValues, key: string, fallback: string) {
+  const url = URL.parse(String(settings[key] ?? fallback));
+  if (
+    !url ||
+    url.protocol !== 'https:' ||
+    url.pathname !== '/' ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash
+  ) {
+    throw new Error(`CopyManga ${key} must be an HTTPS origin`);
+  }
+  return url.origin;
+}
+
+const catalogOrder = new Map([
+  ['updated', '-datetime_updated'],
+  ['oldest-updated', 'datetime_updated'],
+  ['popular', '-popular'],
+]);
+const catalogStatus = new Map([
+  ['ongoing', '0'],
+  ['completed', '1'],
+  ['short', '2'],
+]);
+const catalogRegion = new Map([
+  ['japan', '0'],
+  ['korea', '1'],
+  ['western', '2'],
+]);
+
+const extension: ConfigurableSourceExtension = {
   apiVersion: 1,
   id: 'copymanga',
-  matchesUrl(url, kind) {
-    const parsed = parseUrl(url);
+  settings: {
+    'site-url': { type: 'url', label: 'Website', default: defaultSite },
+    'api-url': { type: 'url', label: 'Chapter API', default: defaultApi },
+    'api-user-agent': {
+      type: 'text',
+      label: 'Chapter API User-Agent',
+      default: apiHeaders['User-Agent'],
+    },
+  },
+  validateSettings(settings) {
+    origin(settings, 'site-url', defaultSite);
+    origin(settings, 'api-url', defaultApi);
+    if (/[^\x20-\x7e]/u.test(String(settings['api-user-agent'] ?? ''))) {
+      throw new Error('CopyManga api-user-agent must use printable ASCII');
+    }
+  },
+  catalog: {
+    browse: {
+      sorts: [
+        { id: 'updated', label: 'Recently updated' },
+        { id: 'oldest-updated', label: 'Least recently updated' },
+        { id: 'popular', label: 'Most popular' },
+      ],
+      filters: {
+        theme: { type: 'dynamic-select', label: 'Theme' },
+        status: {
+          type: 'select',
+          label: 'Status',
+          choices: [
+            { id: 'ongoing', label: 'Ongoing' },
+            { id: 'completed', label: 'Completed' },
+            { id: 'short', label: 'Short work' },
+          ],
+        },
+        region: {
+          type: 'select',
+          label: 'Region',
+          choices: [
+            { id: 'japan', label: 'Japan' },
+            { id: 'korea', label: 'Korea' },
+            { id: 'western', label: 'Western comics' },
+          ],
+        },
+      },
+    },
+  },
+  matchesUrl(url, kind, settings = {}) {
+    const parsed = parseUrl(url, origin(settings, 'site-url', defaultSite));
     return !!parsed && (kind === 'chapter') === !!parsed.chapterId;
   },
   create,
 };
 
-export default extension;
+export default extension as SourceExtension;

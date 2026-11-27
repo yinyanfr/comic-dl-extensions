@@ -18,6 +18,33 @@ const metadata = require.resolve("comic-dl/package.json");
 const cli = join(dirname(metadata), require(metadata).bin["comic-dl"]);
 const extension = fileURLToPath(new URL("../dist/index.js", import.meta.url));
 
+test("Kavita settings require an API key binding to the same server URL", async () => {
+  await exec(
+    execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `
+    import assert from "node:assert/strict";
+    import adapter from ${JSON.stringify(new URL("../dist/index.js", import.meta.url).href)};
+    const settings = { "server-url": "https://kavita.example/kavita/" };
+    assert.throws(() => adapter.create({}, settings), /COMIC_DL_KAVITA_API_KEY_URL/);
+    process.env.COMIC_DL_KAVITA_API_KEY_URL = "https://kavita.example/kavita";
+    assert.equal(adapter.create({}, settings).id, "kavita");
+    assert.throws(() => adapter.create({}, { "server-url": "https://example.invalid/kavita" }), /COMIC_DL_KAVITA_API_KEY_URL/);
+  `,
+    ],
+    {
+      env: {
+        ...env,
+        COMIC_DL_KAVITA_URL: undefined,
+        COMIC_DL_KAVITA_API_KEY_URL: undefined,
+        COMIC_DL_KAVITA_API_KEY: "test-key",
+      },
+    },
+  );
+});
+
 test("Kavita uses the auth key, catalog pagination, volumes and zero-based reader pages", async (t) => {
   const series = {
     id: 11,
@@ -93,6 +120,7 @@ test("Kavita uses the auth key, catalog pagination, volumes and zero-based reade
         ...env,
         COMIC_DL_EXTENSION_DIR: join(directory, "extensions"),
         COMIC_DL_KAVITA_URL: `${base}/`,
+        COMIC_DL_KAVITA_API_KEY_URL: undefined,
         COMIC_DL_KAVITA_API_KEY: key,
       },
     });

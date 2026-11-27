@@ -19,3 +19,14 @@ comic-dl chapter "$COMIC_DL_KAVITA_URL/library/LIBRARY_ID/series/SERIES_ID/manga
 ```
 
 将示例地址、密钥和 ID 换成自己服务器上的值。`COMIC_DL_KAVITA_URL` 包含反向代理子路径，但不能带 `/api`、查询或凭据。也可用 `--source kavita` 加数字作品或章节 ID；完整链接在匹配该地址时会自动选源。Kavita 的图片接口使用 `apiKey` 查询参数；服务端或反向代理记录查询参数时也可能记录这个密钥。
+
+## 运行时设置
+
+`@comic-dl/kavita` 0.2.0 搭配 `comic-dl` 3.2.0 或更新版本时，可以用 `--set` 临时设置服务器地址，或把 `server-url` 保存到 [CLI 配置](https://yinyanfr.github.io/comic-dl/reference/config/)的 `sourceSettings.kavita`。密钥仍由 `COMIC_DL_KAVITA_API_KEY` 提供：
+
+```sh
+export COMIC_DL_KAVITA_API_KEY_URL='https://nas.example/kavita'
+comic-dl search '作品名' --source kavita --set "kavita.server-url=$COMIC_DL_KAVITA_API_KEY_URL"
+```
+
+密钥绑定地址必须匹配完整服务器地址，包括反向代理子路径。未设置 `COMIC_DL_KAVITA_API_KEY_URL` 时，绑定沿用 `COMIC_DL_KAVITA_URL`；如果只在 CLI 配置中设置了服务器地址，仍需明确提供绑定地址。

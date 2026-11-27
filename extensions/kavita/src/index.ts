@@ -1,4 +1,8 @@
 import type {
+  ConfigurableSourceExtension,
+  OptionValues,
+} from "../../source-options.js";
+import type {
   Chapter,
   Page,
   SourceExtension,
@@ -58,8 +62,8 @@ function isId(value: number) {
   return Number.isInteger(value) && value > 0 && value <= 2_147_483_647;
 }
 
-function serverUrl() {
-  const url = URL.parse(process.env.COMIC_DL_KAVITA_URL ?? "");
+function serverUrl(input = process.env.COMIC_DL_KAVITA_URL ?? "") {
+  const url = URL.parse(input);
   if (
     !url ||
     !["http:", "https:"].includes(url.protocol) ||
@@ -119,11 +123,20 @@ function inputIds(
 
 function create(
   api: SourceExtensionApi,
+  settings: OptionValues = {},
 ): ReturnType<SourceExtension["create"]> {
-  const base = serverUrl();
+  const base = serverUrl(settings["server-url"]?.toString());
   const key = process.env.COMIC_DL_KAVITA_API_KEY?.trim();
   if (!base || !key) {
-    throw new Error("Set COMIC_DL_KAVITA_URL and COMIC_DL_KAVITA_API_KEY");
+    throw new Error(
+      "Set Kavita server-url (or COMIC_DL_KAVITA_URL) and COMIC_DL_KAVITA_API_KEY",
+    );
+  }
+  const keyBase = serverUrl(process.env.COMIC_DL_KAVITA_API_KEY_URL);
+  if (keyBase?.href !== base.href) {
+    throw new Error(
+      "Bind the Kavita API key to the configured server with COMIC_DL_KAVITA_API_KEY_URL (or COMIC_DL_KAVITA_URL)",
+    );
   }
   const authHeaders = { "x-api-key": key };
 
@@ -376,14 +389,21 @@ function create(
   };
 }
 
-const extension: SourceExtension = {
+const extension: ConfigurableSourceExtension = {
   apiVersion: 1,
   id: "kavita",
-  matchesUrl(input, kind) {
-    const base = serverUrl();
+  settings: {
+    "server-url": {
+      type: "url",
+      label: "Server URL",
+      env: "COMIC_DL_KAVITA_URL",
+    },
+  },
+  matchesUrl(input, kind, settings = {}) {
+    const base = serverUrl(settings["server-url"]?.toString());
     return !!base && !!linkIds(input, base, kind);
   },
   create,
 };
 
-export default extension;
+export default extension as SourceExtension;

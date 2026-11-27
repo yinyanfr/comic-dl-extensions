@@ -9,7 +9,7 @@
 Install the CLI with Node.js 24:
 
 ```sh
-npm install -g comic-dl@3.0.0-alpha
+npm install -g comic-dl@latest
 comic-dl add @comic-dl/dm5
 
 comic-dl search 妖神记 --source dm5

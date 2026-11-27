@@ -12,11 +12,20 @@
 | [Komga](extensions/komga/)         | `@comic-dl/komga`     | `komga`     |
 | [Kavita](extensions/kavita/)       | `@comic-dl/kavita`    | `kavita`    |
 
-CLI 安装示例：`comic-dl add @comic-dl/zerobyw`。库用法与 Zerobyw 的 Cookie 配置见 [comic-dl 文档](https://yinyanfr.github.io/comic-dl/)。
+使用 Node.js 24 安装 CLI 和所需扩展，例如：
+
+```sh
+npm install -g comic-dl@latest
+comic-dl add @comic-dl/copymanga
+```
+
+CopyManga、Zerobyw、Komga 和 Kavita 从扩展 `0.2.0` 起提供运行时设置，需要 `comic-dl` 3.2.0 或更新版本。若已安装 `0.1.x` 且原版本范围不包含 `0.2.0`，请重新运行 `comic-dl add @comic-dl/copymanga@0.2.0`（替换为对应包名）；`comic-dl update` 遵守原版本范围。
+
+各扩展 README 说明对应的设置、认证和命令。用 Node.js 代码直接注册扩展，参见 [库使用指南](https://yinyanfr.github.io/comic-dl/guide/library/)。
 
 ## 开发
 
-使用 Node.js 24。在仓库根目录运行 `npm ci`、`npm run typecheck` 和 `npm test`。各源使用离线样本验证站点行为。如果要验证尚未发布的核心版本，可以在核心仓库运行 `npm pack`，再在此仓库执行 `npm install --no-save --package-lock=false /path/to/comic-dl-3.0.0-alpha.tgz`，用本地打包产物代替 npm 版本。
+使用 Node.js 24。在仓库根目录运行 `npm ci`、`npm run typecheck` 和 `npm test`。各源使用离线样本验证站点行为。如果要验证尚未发布的核心版本，可以在核心仓库运行 `npm pack`，再在此仓库执行 `npm install --no-save --package-lock=false /path/to/comic-dl-VERSION.tgz`（替换为实际生成的文件），用本地打包产物代替 npm 版本。
 
 单独检查扩展的打包产物：
 

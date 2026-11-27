@@ -18,6 +18,33 @@ const metadata = require.resolve("comic-dl/package.json");
 const cli = join(dirname(metadata), require(metadata).bin["comic-dl"]);
 const extension = fileURLToPath(new URL("../dist/index.js", import.meta.url));
 
+test("Komga settings require an API key binding to the same server URL", async () => {
+  await exec(
+    execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `
+    import assert from "node:assert/strict";
+    import adapter from ${JSON.stringify(new URL("../dist/index.js", import.meta.url).href)};
+    const settings = { "server-url": "https://komga.example/komga/" };
+    assert.throws(() => adapter.create({}, settings), /COMIC_DL_KOMGA_API_KEY_URL/);
+    process.env.COMIC_DL_KOMGA_API_KEY_URL = "https://komga.example/komga";
+    assert.equal(adapter.create({}, settings).id, "komga");
+    assert.throws(() => adapter.create({}, { "server-url": "https://komga.example/other" }), /COMIC_DL_KOMGA_API_KEY_URL/);
+  `,
+    ],
+    {
+      env: {
+        ...env,
+        COMIC_DL_KOMGA_URL: undefined,
+        COMIC_DL_KOMGA_API_KEY_URL: undefined,
+        COMIC_DL_KOMGA_API_KEY: "test-key",
+      },
+    },
+  );
+});
+
 test("Komga uses its documented search, book and one-based page endpoints", async (t) => {
   const series = {
     id: "s1",
@@ -79,6 +106,7 @@ test("Komga uses its documented search, book and one-based page endpoints", asyn
         ...env,
         COMIC_DL_EXTENSION_DIR: join(directory, "extensions"),
         COMIC_DL_KOMGA_URL: base,
+        COMIC_DL_KOMGA_API_KEY_URL: undefined,
         COMIC_DL_KOMGA_API_KEY: "komga-test-key",
       },
     });

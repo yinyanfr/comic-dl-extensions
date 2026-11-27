@@ -6,7 +6,7 @@
 
 ## 使用
 
-按 [comic-dl 快速入门](https://yinyanfr.github.io/comic-dl/guide/quickstart/#使用-zerobyw) 安装 CLI 并获取登录 Cookie：
+按 [comic-dl 快速入门](https://yinyanfr.github.io/comic-dl/guide/quickstart/) 安装 CLI。在浏览器登录 Zerobyw 并打开作品页，在开发者工具的「网络」面板中刷新页面，从发往 `www.zerobyw33.com` 的请求复制 `Cookie` 请求头的值，保存在 `~/zerobyw-cookie.txt`。
 
 ```sh
 comic-dl add @comic-dl/zerobyw
@@ -19,3 +19,21 @@ comic-dl download "$series_url" -c 1-1 -o ./downloads
 ```
 
 把 `series_url` 换成搜索结果第一列的链接。`-c 1-1` 只选列表中的第一章；也可以用 `-c` 指定 `list` 输出的章节 ID。若账号无权访问某一章，CLI 会将该章标为 `restricted`。
+
+## 更换站点
+
+以下设置需要 `@comic-dl/zerobyw` 0.2.0 和 `comic-dl` 3.2.0 或更新版本。地址均为不含路径、查询、片段或凭据的 HTTPS 源地址。可通过 `comic-dl sources --source zerobyw --options` 查看设置，或将设置保存到 [CLI 配置](https://yinyanfr.github.io/comic-dl/reference/config/)的 `sourceSettings.zerobyw`：
+
+- `site-url`：网页地址，默认 `https://www.zerobyw33.com`。
+- `image-url`：独立的图片地址，默认 `https://tupa.zerobyw33.com`。
+- `previous-site-url`：曾经使用过的站点，仅用于识别输入的旧链接。内置默认站点的链接始终可识别；旧链接会保留原 ID 并在当前站点读取。
+
+从自定义站点重新获取 Cookie，替换本地保存的值，然后把认证绑定到当前 `site-url`：
+
+```sh
+export COMIC_DL_ZEROBYW_COOKIE="$(cat "$HOME/zerobyw-cookie.txt")"
+export COMIC_DL_ZEROBYW_COOKIE_ORIGIN='https://zerobyw.example'
+comic-dl list "$series_url" --set "zerobyw.site-url=$COMIC_DL_ZEROBYW_COOKIE_ORIGIN"
+```
+
+未设置 `COMIC_DL_ZEROBYW_COOKIE_ORIGIN` 时，Cookie 仅用于默认站点。搜索和图片请求不发送 Cookie。

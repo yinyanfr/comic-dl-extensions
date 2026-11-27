@@ -1,6 +1,6 @@
 {
   "name": "@comic-dl/kavita",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Kavita source extension for comic-dl",
   "repository": {
     "type": "git",

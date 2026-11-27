@@ -10,6 +10,8 @@ import { env, execPath } from "node:process";
 import { test } from "node:test";
 import { fileURLToPath, URL } from "node:url";
 import { promisify } from "node:util";
+import { sourceExtensionApi } from "comic-dl/extension";
+import adapter from "../dist/index.js";
 
 const exec = promisify(execFile);
 const require = createRequire(import.meta.url);
@@ -30,6 +32,72 @@ const first = "11111111-1234-1234-1234-0123456789ab";
 const second = "22222222-1234-1234-1234-0123456789ab";
 const refusalMessage = "Untrusted message from the site";
 const query = "示例 & 漫画";
+
+test("custom website and API use separate transports, and browse forwards server-side options", async (t) => {
+  const settings = {
+    "site-url": "https://copy.example",
+    "api-url": "https://api.example",
+    "api-user-agent": "Test agent",
+  };
+  t.mock.method(globalThis, "fetch", async (input, init) => {
+    const url = new URL(input);
+    const headers = new Headers(init.headers);
+    if (url.origin === settings["api-url"]) {
+      assert.equal(headers.get("user-agent"), "Test agent");
+      assert.equal(url.pathname, `/api/v3/comic/example/chapter/${first}`);
+      return Response.json({
+        code: 200,
+        results: { comic, chapter: { uuid: first, name: "First" } },
+      });
+    }
+    assert.equal(url.origin, settings["site-url"]);
+    assert.equal(headers.has("user-agent"), false);
+    assert.equal(url.pathname, "/comics");
+    if (url.searchParams.get("limit") === "1") {
+      return new Response(
+        '<a href="/comics?theme=maoxian"><dd>Adventure</dd></a>',
+      );
+    }
+    assert.deepEqual(Object.fromEntries(url.searchParams), {
+      ordering: "-popular",
+      limit: "50",
+      offset: "50",
+      theme: "maoxian",
+      status: "1",
+      region: "0",
+    });
+    return new Response(`<div class="exemptComic-box" total="80"
+      list="[{&#x27;path_word&#x27;: &#x27;example&#x27;, &#x27;name&#x27;: &#x27;Sorted&#x27;}]"></div>`);
+  });
+  const source = adapter.create(sourceExtensionApi, settings);
+  const signal = new AbortController().signal;
+  assert.equal(adapter.matchesUrl(new URL(work), "series", settings), true);
+  assert.equal(
+    adapter.matchesUrl(
+      new URL(`${settings["site-url"]}/comic/example`),
+      "series",
+      settings,
+    ),
+    true,
+  );
+  assert.deepEqual(await source.catalogChoices("theme", "browse", signal), [
+    { id: "maoxian", label: "Adventure" },
+  ]);
+  const page = await source.search("", 2, signal, {
+    sort: "popular",
+    filters: { theme: "maoxian", status: "completed", region: "japan" },
+  });
+  assert.deepEqual(page, {
+    results: [
+      { title: "Sorted", url: `${settings["site-url"]}/comic/example` },
+    ],
+    hasNext: true,
+  });
+  assert.equal(
+    (await source.getChapter(`${work}/chapter/${first}`, signal)).workId,
+    comic.uuid,
+  );
+});
 
 function mockFetch(config, fixtures) {
   const { Headers, Response, URL } = globalThis;
