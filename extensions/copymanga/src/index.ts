@@ -91,14 +91,46 @@ function parseInput(input: string, site: string) {
 }
 
 function searchResults(items: readonly unknown[], site: string) {
-  const results = new Map<string, { title: string; url: string }>();
+  const results = new Map<
+    string,
+    { title: string; url: string; coverUrl?: string }
+  >();
   for (const item of items) {
     const comic = record(item);
     const slug = text(comic.path_word, 'work ID', segment);
     const title = text(comic.name, 'work title');
-    results.set(slug, { title, url: workUrl(slug, site) });
+    results.set(slug, {
+      title,
+      url: workUrl(slug, site),
+      coverUrl: coverUrl(comic.cover),
+    });
   }
   return [...results.values()];
+}
+
+function coverUrl(value: unknown): string | undefined {
+  if (typeof value !== 'string') return;
+  const url = URL.parse(value);
+  if (
+    url?.protocol === 'https:' &&
+    !url.username &&
+    !url.password &&
+    !url.search &&
+    !url.hash
+  )
+    return url.href;
+}
+
+function names(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return;
+  return value.flatMap((item: unknown) =>
+    item &&
+    typeof item === 'object' &&
+    'name' in item &&
+    typeof item.name === 'string'
+      ? [item.name]
+      : [],
+  );
 }
 
 function offsetFor(page: number, size: number) {
@@ -384,13 +416,20 @@ function create(
       }
       return {
         id: workId,
+        metadata: {
+          title: typeof comic.name === 'string' ? comic.name : undefined,
+          authors: names(comic.author),
+          summary: typeof comic.brief === 'string' ? comic.brief : undefined,
+          tags: names(comic.theme),
+          coverUrl: coverUrl(comic.cover),
+        },
         chapters: [...chapters.values()]
           .sort((a, b) => a.order - b.order)
           .map(({ chapter }) => chapter),
       };
     },
     async getChapter(input, signal) {
-      const { slug, chapterId } = parseInput(input, site);
+      const { slug, chapterId, group } = parseInput(input, site);
       if (!chapterId) {
         throw new Error('Expected a CopyManga chapter URL');
       }
@@ -398,6 +437,7 @@ function create(
       let initial: Record<string, unknown> | undefined = chapter;
       return {
         workId,
+        seriesInput: `${workUrl(slug, site)}?group=${group}`,
         chapter: {
           id: chapterId,
           title: text(chapter.name, 'chapter title'),

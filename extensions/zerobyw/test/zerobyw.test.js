@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { Buffer } from "node:buffer";
 import { execFile } from "node:child_process";
 import { once } from "node:events";
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { outputFiles as readdir } from "../../../test/output.js";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
@@ -32,6 +33,8 @@ function chapterLink(id) {
 function seriesHtml(cards, guest, includeMetadata = true) {
   const metadata = cards.map(([zjid, zjname]) => ({ zjid, zjname }));
   return `
+    <h1>Series title</h1><div class="manga-description">Summary</div>
+    <a href="?author=1">Author</a><a href="?tag=1">Tag</a>
     <script>var discuz_uid = '${guest ? 0 : 123}';</script>
     ${includeMetadata ? `<script>const mangaDownloadChapters = ${JSON.stringify(metadata)};</script>` : ""}
     <section>
@@ -91,6 +94,10 @@ test("an old series link keeps its ID on a custom domain without forwarding the 
   const series = await authenticated.getSeries(input, signal);
   assert.equal(series.id, "1");
   assert.equal(series.chapters[0].id, "2");
+  assert.equal(series.metadata.title, "Series title");
+  assert.equal(series.metadata.summary, "Summary");
+  assert.deepEqual(series.metadata.authors, ["Author"]);
+  assert.deepEqual(series.metadata.tags, ["Tag"]);
 });
 
 function chapterHtml(
@@ -347,7 +354,8 @@ test("Zerobyw accepts chapter links without download metadata and classifies rea
   });
   await assert.rejects(run("chapter", chapterLink(108)), {
     code: 1,
-    stderr: "comic-dl: zerobyw: could not resolve the chapter: Zerobyw refused to open the chapter (site notice)\n",
+    stderr:
+      "comic-dl: zerobyw: could not resolve the chapter: Zerobyw refused to open the chapter (site notice)\n",
   });
 });
 

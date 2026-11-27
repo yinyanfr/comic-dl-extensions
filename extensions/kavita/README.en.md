@@ -1,5 +1,7 @@
 # Kavita
 
+> Version `0.3.0` targets core 4.x with optional metadata and opaque `coverId`. Read protected images on the server with `app.readCover(coverId, { source: 'kavita' })`. Only the bound server's constrained image endpoint is used, never arbitrary URLs or public Auth Key URLs. Direct links resolve canonical catalogs; missing metadata is nonfatal. See the [core API](https://yinyanfr.github.io/comic-dl/en/guide/service-api/).
+
 [简体中文](README.md)
 
 `@comic-dl/kavita` connects [comic-dl](https://github.com/yinyanfr/comic-dl) to a self-hosted Kavita library. It uses the [Kavita REST API](https://www.kavitareader.com/docs/api) to search by series title, list chapters and specials across volumes, and download CBZ archives. It supports comics the server can serve page by page and requests image extraction for PDFs. EPUB is unsupported.

@@ -4,6 +4,8 @@
 
 在仓库根目录更新要发布的扩展版本。例如，给 Zerobyw 升一个补丁版本：
 
+跨核心版本升级时先发布核心。当前开发类型固定为 `comic-dl@4.0.0`；未来测试未发布核心时可用本地 tarball，但不要提前推送扩展版本变更触发发布。确认所需核心可公开安装后，再提交/发布扩展，并核对 changelog 条目与实际 npm UTC 发布日期。
+
 ```sh
 npm version patch --workspace @comic-dl/zerobyw --no-git-tag-version
 ```

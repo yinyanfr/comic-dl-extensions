@@ -1,5 +1,7 @@
 # Kavita
 
+> 版本 `0.3.0` 面向核心 4.x，返回可选作品元数据和 `coverId`；用 `app.readCover(coverId, { source: 'kavita' })` 在服务端读取封面。只读取绑定服务的限定图片接口，不接受任意 URL，不返回带 Auth Key 的地址。章节直链关联原作品目录，缺失元数据不阻止下载。详见[核心 API](https://yinyanfr.github.io/comic-dl/guide/service-api/)。
+
 [English](README.en.md)
 
 `@comic-dl/kavita` 是 [comic-dl](https://github.com/yinyanfr/comic-dl) 的自托管 Kavita 书库源。它通过 [Kavita REST API](https://www.kavitareader.com/docs/api) 按作品名搜索、列出各卷的章节和番外，并下载为 CBZ。支持服务端能逐页提供图片的漫画，也会请求服务端将 PDF 提取为图片；EPUB 不受支持。

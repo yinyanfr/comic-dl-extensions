@@ -2,7 +2,8 @@ import { Uint8ArrayReader, Uint8ArrayWriter, ZipReader } from "@zip.js/zip.js";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { once } from "node:events";
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { outputFiles as readdir } from "../../../test/output.js";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
@@ -49,7 +50,12 @@ test("Komga uses its documented search, book and one-based page endpoints", asyn
   const series = {
     id: "s1",
     name: "Series",
-    metadata: { title: "示例" },
+    metadata: {
+      title: "示例",
+      summary: "Summary",
+      authors: [{ name: "Author" }],
+      tags: ["Tag"],
+    },
     deleted: false,
   };
   const book = {
@@ -76,6 +82,8 @@ test("Komga uses its documented search, book and one-based page endpoints", asyn
         return json({ content: [series], last: false });
       case "/komga/api/v1/series/s1":
         return json(series);
+      case "/komga/api/v1/series/s1/thumbnail":
+        return res.setHeader("Content-Type", "image/png").end("cover");
       case "/komga/api/v1/books/list":
         return json({ content: [book] });
       case "/komga/api/v1/books/b1":
@@ -205,5 +213,35 @@ test("Komga uses its documented search, book and one-based page endpoints", asyn
         url.pathname.startsWith("/komga/api/") &&
         headers["x-api-key"] === "komga-test-key",
     ),
+  );
+  await exec(
+    execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `
+    import assert from "node:assert/strict";
+    import { createDownloader } from "comic-dl";
+    import adapter from ${JSON.stringify(new URL("../dist/index.js", import.meta.url).href)};
+    const app = createDownloader({source:"komga"}).use(adapter);
+    const series = await app.list("s1");
+    assert.equal(series.metadata.title, "示例");
+    assert.deepEqual(series.metadata.authors, ["Author"]);
+    assert.equal(series.metadata.summary, "Summary");
+    const page = await app.search("");
+    assert.equal(page.results[0].coverId, "s1");
+    assert.equal((await app.readCover(series.metadata.coverId)).contentType, "image/png");
+    await assert.rejects(app.readCover("../outside"));
+    assert.ok(!JSON.stringify(series.metadata).includes("komga-test-key"));
+  `,
+    ],
+    {
+      env: {
+        ...env,
+        COMIC_DL_KOMGA_URL: base,
+        COMIC_DL_KOMGA_API_KEY_URL: base,
+        COMIC_DL_KOMGA_API_KEY: "komga-test-key",
+      },
+    },
   );
 });

@@ -2,11 +2,21 @@
 
 Each extension is versioned independently. Entries group packages released from the same commit; dates are npm publication dates in UTC. For future releases, list each affected package and its exact version. Keep changes that have not shipped in a package under **Unreleased**.
 
-## Unreleased
+## Metadata, protected covers, and canonical chapter context — 2026-11-28
 
-- Pin the development and test dependency to `comic-dl@3.2.0`. Use the public API v1 types from `comic-dl/extension` for all five packages and remove the local compatibility declarations.
-- Verify CopyManga runtime settings, URL matching, dynamic theme choices, and paginated catalog filters through the public library API. Update the Zerobyw CLI test for 3.2.0's chapter error format.
-- Add the repository's release history and link it from the English and Simplified Chinese documentation.
+These versions target the public `comic-dl@4.0.0` backend APIs while retaining extension API v1.
+
+- **`@comic-dl/copymanga@0.3.0`:** Return optional titles, authors, summaries, themes, and public cover URLs. Associate direct chapters with their series and selected `group` so the core preserves full-catalog numbering.
+- **`@comic-dl/zerobyw@0.3.0`:** Extract optional page-provided metadata and public covers. Resolve direct chapters through the current site's canonical series catalog without changing Cookie origin binding or anonymous image requests.
+- **`@comic-dl/komga@0.3.0`:** Return series metadata and opaque cover IDs. Read protected thumbnails through a source-constrained server endpoint, never exposing API keys. Associate direct book links with their series catalog.
+- **`@comic-dl/kavita@0.3.0`:** Return optional series/detail metadata and opaque cover IDs. Read protected covers on the bound server without returning Auth Key URLs, and associate direct chapters with the series catalog.
+- **`@comic-dl/dm5@0.2.0`:** Extract optional titles, authors, summaries, tags, and public covers. Use reader-provided series links for canonical positions without exposing image signing queries.
+
+### Development and documentation
+
+- Pin development to the published `comic-dl@4.0.0`, using public `comic-dl/extension` types without local compatibility declarations. Verify metadata, authenticated covers, direct-link identity, and readable archives with 19 offline tests.
+- Preserve the preceding repository maintenance: public-API tests for CopyManga settings, URL matching, dynamic themes, and pagination; updated Zerobyw CLI diagnostics; complete English release history and bilingual publishing guidance.
+- Document the core-first publishing sequence and link all five packages to the bilingual core task/archive API guides.
 
 ## Runtime settings and catalog filters — 2026-11-27
 

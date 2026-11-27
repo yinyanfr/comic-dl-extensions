@@ -1,5 +1,7 @@
 # Komga
 
+> Version `0.3.0` targets core 4.x with optional metadata and opaque `coverId`. Use `app.readCover(coverId, { source: 'komga' })` on the server for protected covers. IDs constrain the endpoint, keys remain bound to the full server URL, and redirects are refused without exposing keys. Direct links resolve their series catalog. See the [core API](https://yinyanfr.github.io/comic-dl/en/guide/service-api/).
+
 [简体中文](README.md)
 
 `@comic-dl/komga` connects [comic-dl](https://github.com/yinyanfr/comic-dl) to a self-hosted Komga library. It uses the [Komga REST API](https://komga.org/docs/openapi/komga-api/) to search series, list books, and download each book as a CBZ. Your account needs access to the library and the `PAGE_STREAMING` permission. Comics and PDFs the server can render page by page are supported; EPUB is unsupported.

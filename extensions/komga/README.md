@@ -1,5 +1,7 @@
 # Komga
 
+> 版本 `0.3.0` 面向核心 4.x，返回作品元数据和 `coverId`；用 `app.readCover(coverId, { source: 'komga' })` 在服务端读取鉴权封面。只接受来源内 ID，密钥仍绑定完整服务地址，拒绝外部重定向，不在公开结果返回密钥。章节直链关联原作品目录；任务、命名与迁移见[核心 API](https://yinyanfr.github.io/comic-dl/guide/service-api/)。
+
 [English](README.en.md)
 
 `@comic-dl/komga` 是 [comic-dl](https://github.com/yinyanfr/comic-dl) 的自托管 Komga 书库源。它通过 [Komga REST API](https://komga.org/docs/openapi/komga-api/) 搜索作品、列出书籍，并逐页下载为 CBZ。每本书对应一个章节；账号需要能访问目标书库，并具有 `PAGE_STREAMING` 权限。支持可逐页读取的漫画和服务器可渲染的 PDF；EPUB 不受支持。

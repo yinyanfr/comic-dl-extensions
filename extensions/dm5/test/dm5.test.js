@@ -1,7 +1,8 @@
 import { Uint8ArrayReader, Uint8ArrayWriter, ZipReader } from "@zip.js/zip.js";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { outputFiles as readdir } from "../../../test/output.js";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -25,13 +26,16 @@ function mockFetch() {
   const catalog = `<ul class="mh-list"><li><h2 class="title">
     <a href="/manhua-example/">示例漫画</a></h2></li></ul>`;
   const series = `<script>var DM5_COMIC_MID=81;</script>
+    <h1>示例漫画</h1><div class="detail-list-form-intro">Summary</div>
+    <div class="banner_detail_form"><a href="?author=1">Author</a><a href="?tag=1">Tag</a>
+    <img src="https://example.cdndm5.com/cover.jpg"></div>
     <div id="chapterlistload"><ul>
       <li><a href="/m101/"><p class="title">First</p></a></li>
       <li><a href="/m102/"><p class="title">Locked</p><span class="detail-lock"></span></a></li>
       <li><a href="/m103/"><p class="title">Direct images</p></a></li>
     </ul></div>`;
   const chapter = (id) =>
-    `<title>Chapter ${id}</title><script>var DM5_MID=81; var DM5_CID=${id};
+    `<title>Chapter ${id}</title><a href="/manhua-example/">Series</a><script>var DM5_MID=81; var DM5_CID=${id};
       var DM5_IMAGE_COUNT=2; var DM5_VIEWSIGN_DT="2026-01-01 00:00:00";
       var DM5_VIEWSIGN="test-sign";</script>`;
   globalThis.fetch = async (input, init) => {
@@ -181,6 +185,29 @@ test("Dm5 searches the catalog and auto-selects the same source for both sites",
     run(["list", `${manhuaren}/showcomic/?id=91`], directory),
     { stderr: /Could not verify the mapped Dm5 series ID/ },
   );
+});
+
+test("Dm5 exposes metadata without leaking reader signing queries", async () => {
+  const preload = Buffer.from(`(${mockFetch.toString()})();`).toString(
+    "base64",
+  );
+  await exec(execPath, [
+    "--import",
+    `data:text/javascript;base64,${preload}`,
+    "--input-type=module",
+    "-e",
+    `
+    import assert from "node:assert/strict";
+    import { createDownloader } from "comic-dl";
+    import adapter from ${JSON.stringify(new URL("../dist/index.js", import.meta.url).href)};
+    const series = await createDownloader().use(adapter).list("https://www.dm5.com/manhua-example/");
+    assert.equal(series.metadata.title,"示例漫画");
+    assert.deepEqual(series.metadata.authors,["Author"]);
+    assert.equal(series.metadata.summary,"Summary");
+    assert.equal(series.metadata.coverUrl,"https://example.cdndm5.com/cover.jpg");
+    assert.ok(!JSON.stringify(series.metadata).includes("token="));
+  `,
+  ]);
 });
 
 test("Series and chapter links share one CBZ with correctly ordered pages", async (t) => {

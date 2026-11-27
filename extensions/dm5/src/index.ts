@@ -81,6 +81,18 @@ function imageUrl(input: string, base: URL) {
   return url;
 }
 
+function coverUrl(value: string | undefined, base: URL): string | undefined {
+  const url = value && URL.parse(value, base.href);
+  return url &&
+    url.protocol === "https:" &&
+    !url.username &&
+    !url.password &&
+    !url.search &&
+    !url.hash
+    ? url.href
+    : undefined;
+}
+
 function create(
   api: SourceExtensionApi,
 ): ReturnType<SourceExtension["create"]> {
@@ -267,7 +279,10 @@ function create(
       if (!$("ul.mh-list, .banner_detail_form").length) {
         throw new Error("Dm5 did not return a search or catalog page");
       }
-      const results = new Map<string, { title: string; url: string }>();
+      const results = new Map<
+        string,
+        { title: string; url: string; coverUrl?: string }
+      >();
       for (const element of $("ul.mh-list > li, .banner_detail_form")) {
         const anchor = $(element).find(".title > a[href]").first();
         const title = anchor.text().trim();
@@ -275,7 +290,15 @@ function create(
         const link = href && identify(href);
         if (title && link?.kind === "series") {
           const canonical = seriesUrl(link.slug).href;
-          results.set(canonical, { title, url: canonical });
+          results.set(canonical, {
+            title,
+            url: canonical,
+            coverUrl: coverUrl(
+              $(element).find("img").first().attr("data-src") ??
+                $(element).find("img").first().attr("src"),
+              url,
+            ),
+          });
         }
       }
       const hasNext = $(".page-pagination a")
@@ -305,7 +328,31 @@ function create(
           chapter(id, link.chapter, title || link.chapter, locked),
         );
       }
-      return { id, chapters: [...chapters.values()] };
+      return {
+        id,
+        chapters: [...chapters.values()],
+        metadata: {
+          title:
+            $(".banner_detail_form .title").first().text().trim() ||
+            $("h1").first().text().trim() ||
+            undefined,
+          summary:
+            $(".detail-list-form-intro, .content").first().text().trim() ||
+            undefined,
+          authors: $(".banner_detail_form a[href*='author']")
+            .map((_, node) => $(node).text().trim())
+            .get(),
+          tags: $(".banner_detail_form a[href*='tag']")
+            .map((_, node) => $(node).text().trim())
+            .get(),
+          coverUrl: coverUrl(
+            $(".banner_detail_form img, .banner_detail_cover img")
+              .first()
+              .attr("src"),
+            url,
+          ),
+        },
+      };
     },
     async getChapter(input, signal) {
       const url = URL.parse(input);
@@ -326,8 +373,20 @@ function create(
         throw new Error("Manhuaren and Dm5 chapter work IDs do not match");
       }
       const title = reader.$("title").text().split("_在线漫画阅读")[0].trim();
+      const seriesInput = reader
+        .$("a[href]")
+        .toArray()
+        .map((node) => {
+          const url = URL.parse(
+            reader.$(node).attr("href") ?? "",
+            reader.url.href,
+          );
+          return url && identify(url)?.kind === "series" ? url.href : undefined;
+        })
+        .find((url) => url !== undefined);
       return {
         workId: reader.workId,
+        seriesInput,
         chapter: chapter(
           reader.workId,
           link.chapter,

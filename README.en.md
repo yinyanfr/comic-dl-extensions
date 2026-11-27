@@ -19,13 +19,15 @@ npm install -g comic-dl@latest
 comic-dl add @comic-dl/copymanga
 ```
 
-CopyManga, Zerobyw, Komga, and Kavita introduced runtime settings in extension version `0.2.0`. These settings require `comic-dl` 3.2.0 or later. If your saved version range excludes `0.2.0`, rerun `comic-dl add @comic-dl/copymanga@0.2.0` with the appropriate package name. `comic-dl update` respects the saved range.
+Current versions are CopyManga, Zerobyw, Komga, and Kavita `0.3.0`, and DM5 `0.2.0`. Their complete metadata, cover, and chapter-context features use `comic-dl` 4.x. If an older saved range excludes the new minor version, rerun `comic-dl add @comic-dl/copymanga@latest` with the appropriate package name. `comic-dl update` still respects saved ranges.
 
 Each extension's README covers its settings, authentication, and commands. To register extensions directly from Node.js, see the [library guide](https://yinyanfr.github.io/comic-dl/en/guide/library/).
 
 See the [changelog](CHANGELOG.md) for release history by package version.
 
 ## Development
+
+Metadata, protected covers, and canonical direct-link context use public core APIs. Authentication and site parsing stay in the extensions; naming, formats, task progress, and archive migration belong to the core.
 
 Use Node.js 24. From the repository root, run:
 
@@ -35,7 +37,7 @@ npm run typecheck
 npm test
 ```
 
-Development and offline tests use `comic-dl@3.2.0`. Extensions import the public API v1 types, including source settings and catalog options, from `comic-dl/extension`. To test with an unpublished core build, run `npm pack` in the core repository, then run `npm install --no-save --package-lock=false /path/to/comic-dl-VERSION.tgz` in this repository, substituting the generated filename.
+Development pins the published `comic-dl@4.0.0` and imports public API v1 types from `comic-dl/extension`. To test future unpublished core changes, use `npm pack` in the core repository and `npm install --no-save --package-lock=false /path/to/comic-dl-VERSION.tgz` here, without committing local paths. Publish the required core before releasing extensions.
 
 Inspect an extension's package independently:
 

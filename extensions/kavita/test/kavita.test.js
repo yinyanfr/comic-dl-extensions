@@ -2,7 +2,8 @@ import { Uint8ArrayReader, Uint8ArrayWriter, ZipReader } from "@zip.js/zip.js";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { once } from "node:events";
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { outputFiles as readdir } from "../../../test/output.js";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
@@ -51,6 +52,9 @@ test("Kavita uses the auth key, catalog pagination, volumes and zero-based reade
     libraryId: 7,
     name: "Original",
     localizedName: "本地化标题",
+    summary: "Summary",
+    writers: [{ name: "Author" }],
+    genres: [{ title: "Genre" }],
   };
   const chapter = {
     id: 21,
@@ -59,6 +63,7 @@ test("Kavita uses the auth key, catalog pagination, volumes and zero-based reade
     sortOrder: 1,
   };
   const requests = [];
+  let includeRedirect = false;
   const key = "kavita-test+key";
   const server = createServer(async (req, res) => {
     const url = new URL(req.url, "http://localhost");
@@ -79,9 +84,16 @@ test("Kavita uses the auth key, catalog pagination, volumes and zero-based reade
         return json([series]);
       case "/kavita/api/Series/11":
         return json(series);
+      case "/kavita/api/image/series-cover":
+        return res.setHeader("Content-Type", "image/png").end("cover");
       case "/kavita/api/Series/volumes":
         return json([
-          { seriesId: 11, chapters: [chapter] },
+          {
+            seriesId: 11,
+            chapters: includeRedirect
+              ? [chapter, { ...chapter, id: 22 }]
+              : [chapter],
+          },
           { seriesId: 11, chapters: [] },
         ]);
       case "/kavita/api/Reader/chapter-info":
@@ -148,6 +160,7 @@ test("Kavita uses the auth key, catalog pagination, volumes and zero-based reade
     run("chapter", `${base}/library/7/series/19/manga/21`, "-o", directory),
     { stderr: /different series or library/ },
   );
+  includeRedirect = true;
   const redirect = await run(
     "chapter",
     "22",
@@ -208,5 +221,34 @@ test("Kavita uses the auth key, catalog pagination, volumes and zero-based reade
       ({ url, headers }) =>
         url.pathname.startsWith("/kavita/api/") && headers["x-api-key"] === key,
     ),
+  );
+  await exec(
+    execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `
+    import assert from "node:assert/strict";
+    import { createDownloader } from "comic-dl";
+    import adapter from ${JSON.stringify(new URL("../dist/index.js", import.meta.url).href)};
+    const app = createDownloader({source:"kavita"}).use(adapter);
+    const series = await app.list("11");
+    assert.equal(series.metadata.title, "本地化标题");
+    assert.deepEqual(series.metadata.authors, ["Author"]);
+    assert.equal(series.metadata.summary, "Summary");
+    assert.equal((await app.search("")).results[0].coverId, "11");
+    assert.equal((await app.readCover(series.metadata.coverId)).contentType, "image/png");
+    await assert.rejects(app.readCover("../outside"));
+    assert.ok(!JSON.stringify(series.metadata).includes("kavita-test"));
+  `,
+    ],
+    {
+      env: {
+        ...env,
+        COMIC_DL_KAVITA_URL: base,
+        COMIC_DL_KAVITA_API_KEY_URL: base,
+        COMIC_DL_KAVITA_API_KEY: key,
+      },
+    },
   );
 });

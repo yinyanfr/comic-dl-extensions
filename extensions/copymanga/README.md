@@ -1,5 +1,7 @@
 # CopyManga（拷贝漫画）
 
+> 版本 `0.3.0` 面向核心 4.x：返回可选标题、作者、简介、题材和公共封面；章节直链保留系列与 `group`，由核心确定完整目录序号。缺失元数据不阻止下载。命名模板、CBZ/ZIP、任务与迁移见[核心 API](https://yinyanfr.github.io/comic-dl/guide/service-api/)。
+
 [English](README.en.md)
 
 `@comic-dl/copymanga` 是 [comic-dl](https://github.com/yinyanfr/comic-dl) 的拷贝漫画源。支持匿名搜索、列出章节和下载 CBZ。搜索使用 `www.copy20.com`，下载使用「熱辣漫畫 線路 2」，无需登录。

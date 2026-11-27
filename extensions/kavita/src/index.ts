@@ -13,6 +13,10 @@ interface SeriesDto {
   libraryId: number;
   name: string | null;
   localizedName: string | null;
+  summary?: string;
+  genres?: { title: string }[];
+  tags?: { title: string }[];
+  writers?: { name: string }[];
 }
 
 interface ChapterDto {
@@ -279,6 +283,27 @@ function create(
 
   return {
     id: "kavita",
+    async readCover(id, signal) {
+      if (!/^\d+$/.test(id) || !isId(Number(id)))
+        throw new Error("Invalid Kavita cover ID");
+      const { bytes, headers } = await request(
+        url("api/image/series-cover", { seriesId: id }),
+        signal,
+      );
+      const contentType = headers
+        .get("content-type")
+        ?.split(";")[0]
+        .trim()
+        .toLowerCase();
+      if (
+        contentType !== "image/jpeg" &&
+        contentType !== "image/png" &&
+        contentType !== "image/gif" &&
+        contentType !== "image/webp"
+      )
+        throw new Error("Invalid Kavita cover type");
+      return { bytes, contentType };
+    },
     async search(query, page, signal) {
       const { data, headers } = await json<SeriesDto[]>(
         url("api/Series/v2", {
@@ -312,6 +337,7 @@ function create(
           return {
             title: series.localizedName || series.name || String(series.id),
             url: url(`library/${series.libraryId}/series/${series.id}`).href,
+            coverId: String(series.id),
           };
         }),
       };
@@ -330,6 +356,16 @@ function create(
       ) {
         throw new Error("Kavita series not found in the requested library");
       }
+      let details = series;
+      try {
+        const { data } = await json<Partial<SeriesDto>>(
+          url("api/Series/metadata", { seriesId: String(seriesId) }),
+          signal,
+        );
+        if (data && typeof data === "object") details = { ...series, ...data };
+      } catch {
+        signal.throwIfAborted();
+      } // Optional metadata must not block chapters.
       const { data: volumes } = await json<VolumeDto[]>(
         url("api/Series/volumes", { seriesId: String(seriesId) }),
         signal,
@@ -342,6 +378,15 @@ function create(
       }
       return {
         id: workId(series.id),
+        metadata: {
+          title: series.localizedName || series.name || String(series.id),
+          summary: details.summary,
+          authors: details.writers?.map((author) => author.name),
+          tags: [...(details.genres ?? []), ...(details.tags ?? [])].map(
+            (tag) => tag.title,
+          ),
+          coverId: String(series.id),
+        },
         chapters: volumes.flatMap((volume) =>
           (volume.chapters ?? [])
             .toSorted((a, b) => a.sortOrder - b.sortOrder)
@@ -381,6 +426,8 @@ function create(
         String(chapterId);
       return {
         workId: workId(info.seriesId),
+        seriesInput: url(`library/${info.libraryId}/series/${info.seriesId}`)
+          .href,
         chapter: chapter(info.seriesId, info.libraryId, chapterId, title, info),
       };
     },

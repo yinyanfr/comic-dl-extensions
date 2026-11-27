@@ -1,5 +1,7 @@
 # Zerobyw
 
+> 版本 `0.3.0` 面向核心 4.x：返回页面提供的可选标题、作者、简介、标签和公共封面；章节直链关联作品目录，缺失元数据不影响下载。图片继续匿名读取，Cookie Origin 绑定不变；任务、命名与迁移见[核心 API](https://yinyanfr.github.io/comic-dl/guide/service-api/)。
+
 [English](README.en.md)
 
 `@comic-dl/zerobyw` 是 [comic-dl](https://github.com/yinyanfr/comic-dl) 的 Zerobyw 漫画源。公开搜索无需登录，列章和下载需要有效的 Zerobyw 登录会话。

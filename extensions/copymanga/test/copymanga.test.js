@@ -2,7 +2,8 @@ import { Uint8ArrayReader, Uint8ArrayWriter, ZipReader } from "@zip.js/zip.js";
 import assert from "node:assert/strict";
 import { Buffer } from "node:buffer";
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { outputFiles as readdir } from "../../../test/output.js";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -28,6 +29,11 @@ const work = `${site}/comic/example`;
 const comic = {
   uuid: "01234567-1234-1234-1234-0123456789ab",
   path_word: "example",
+  name: "Example",
+  cover: "https://covers.example/cover.jpg",
+  author: [{ name: "Author" }],
+  brief: "Summary",
+  theme: [{ name: "Tag" }],
 };
 const first = "11111111-1234-1234-1234-0123456789ab";
 const second = "22222222-1234-1234-1234-0123456789ab";
@@ -92,7 +98,11 @@ test("custom website and API use separate transports, and browse forwards server
   });
   assert.deepEqual(page, {
     results: [
-      { title: "Sorted", url: `${settings["site-url"]}/comic/example` },
+      {
+        title: "Sorted",
+        url: `${settings["site-url"]}/comic/example`,
+        coverUrl: undefined,
+      },
     ],
     hasNext: true,
   });
@@ -101,6 +111,34 @@ test("custom website and API use separate transports, and browse forwards server
     (await source.getChapter(`${work}/chapter/${first}`, signal)).workId,
     comic.uuid,
   );
+});
+
+test("CopyManga exposes optional metadata and canonical chapter context", async (t) => {
+  t.mock.method(globalThis, "fetch", async (input) => {
+    const url = new URL(input);
+    if (url.pathname.includes("/chapters"))
+      return Response.json({
+        code: 200,
+        results: {
+          total: 1,
+          offset: 0,
+          list: [{ uuid: first, name: "First", index: 1 }],
+        },
+      });
+    return Response.json({
+      code: 200,
+      results: { comic, groups: { default: {} } },
+    });
+  });
+  const app = createDownloader({ source: "copymanga" }).use(adapter);
+  const series = await app.list(work);
+  assert.deepEqual(series.metadata, {
+    title: "Example",
+    authors: ["Author"],
+    summary: "Summary",
+    tags: ["Tag"],
+    coverUrl: "https://covers.example/cover.jpg",
+  });
 });
 
 function mockFetch(config, fixtures) {
@@ -242,7 +280,7 @@ test("CopyManga URLs select the source and download to the working directory by 
     /1 downloaded, 0 skipped, 1 restricted, 0 failed/,
   );
   const [filename] = await readdir(cwd);
-  assert.match(filename, /^chapter-.*\.cbz$/);
+  assert.match(filename, /\/1-.*\.cbz$/);
   assert.deepEqual(await readdir(cwd), [filename]);
 
   await assert.rejects(

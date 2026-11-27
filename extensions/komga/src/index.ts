@@ -11,7 +11,13 @@ interface SeriesDto {
   id: string;
   name: string;
   deleted: boolean;
-  metadata: { title: string };
+  metadata: {
+    title: string;
+    summary?: string;
+    genres?: string[];
+    tags?: string[];
+    authors?: { name: string }[];
+  };
 }
 
 interface BookDto {
@@ -218,6 +224,26 @@ function create(
 
   return {
     id: "komga",
+    async readCover(id, signal) {
+      if (!idPattern.test(id)) throw new Error("Invalid Komga cover ID");
+      const { bytes, headers } = await request(
+        url(`api/v1/series/${id}/thumbnail`),
+        signal,
+      );
+      const contentType = headers
+        .get("content-type")
+        ?.split(";")[0]
+        .trim()
+        .toLowerCase();
+      if (
+        contentType !== "image/jpeg" &&
+        contentType !== "image/png" &&
+        contentType !== "image/gif" &&
+        contentType !== "image/webp"
+      )
+        throw new Error("Invalid Komga cover type");
+      return { bytes, contentType };
+    },
     async search(query, page, signal) {
       const { content, last } = await json<Paged<SeriesDto>>(
         url("api/v1/series/list", { page: String(page - 1), size: "20" }),
@@ -240,6 +266,7 @@ function create(
             return {
               title: item.metadata?.title || item.name || item.id,
               url: workId(item.id),
+              coverId: item.id,
             };
           }),
       };
@@ -265,6 +292,16 @@ function create(
       }
       return {
         id: workId(id),
+        metadata: {
+          title: series.metadata?.title || series.name || id,
+          summary: series.metadata?.summary,
+          authors: series.metadata?.authors?.map((author) => author.name),
+          tags: [
+            ...(series.metadata?.genres ?? []),
+            ...(series.metadata?.tags ?? []),
+          ],
+          coverId: id,
+        },
         chapters: content.filter((book) => !book.deleted).map(chapter),
       };
     },
@@ -279,7 +316,11 @@ function create(
       ) {
         throw new Error("Komga book not found");
       }
-      return { workId: workId(book.seriesId), chapter: chapter(book) };
+      return {
+        workId: workId(book.seriesId),
+        seriesInput: workId(book.seriesId),
+        chapter: chapter(book),
+      };
     },
   };
 }

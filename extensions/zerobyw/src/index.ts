@@ -122,6 +122,18 @@ function createZerobywSource(
   ];
   const readSiteUrl = (input: string, base: URL) =>
     siteUrl(input, base, [origin]);
+  const coverUrl = (value: string | undefined) => {
+    const url = value && URL.parse(value, origin);
+    return url &&
+      imageOrigins.includes(url.origin) &&
+      url.protocol === "https:" &&
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      !url.hash
+      ? url.href
+      : undefined;
+  };
 
   function requestUrl(input: string, page: "details" | "view") {
     const id = pageId(siteUrl(input, undefined, acceptedInputs), page);
@@ -309,7 +321,10 @@ function createZerobywSource(
       const { $, url: finalUrl } = await document(url, signal, false);
       const main = $("main");
       const links = main.find("a[href]").toArray();
-      const results = new Map<string, { title: string; url: string }>();
+      const results = new Map<
+        string,
+        { title: string; url: string; coverUrl?: string }
+      >();
       for (const link of links) {
         const id = pageId(
           readSiteUrl($(link).attr("href") ?? "", finalUrl),
@@ -321,6 +336,10 @@ function createZerobywSource(
           results.set(id, {
             title,
             url: new URL(`/pc/details/?kuid=${id}`, origin).href,
+            coverUrl: coverUrl(
+              $(link).find("img").first().attr("data-src") ??
+                $(link).find("img").first().attr("src"),
+            ),
           });
         }
       }
@@ -438,7 +457,26 @@ function createZerobywSource(
           };
         },
       );
-      return { id, chapters };
+      return {
+        id,
+        chapters,
+        metadata: {
+          title: $("h1").first().text().trim() || undefined,
+          summary:
+            $(".manga-description, .description").first().text().trim() ||
+            undefined,
+          authors: $("a[href*='author=']")
+            .map((_, node) => $(node).text().trim())
+            .get(),
+          tags: $("a[href*='tag=']")
+            .map((_, node) => $(node).text().trim())
+            .get(),
+          coverUrl: coverUrl(
+            $("meta[property='og:image']").attr("content") ??
+              $("main img").first().attr("src"),
+          ),
+        },
+      };
     },
     async getChapter(input, signal) {
       const { id, url } = requestUrl(input, "view");
@@ -447,6 +485,7 @@ function createZerobywSource(
       let used = false;
       return {
         workId,
+        seriesInput: new URL(`/pc/details/?kuid=${workId}`, origin).href,
         chapter: {
           id,
           title,

@@ -1,5 +1,7 @@
 # CopyManga
 
+> Version `0.3.0` targets core 4.x: optional titles, authors, summaries, themes, and public covers; direct links retain series and `group` context for canonical numbering. Missing metadata never blocks downloads. Templates, CBZ/ZIP, tasks, and migrations belong to the [core API](https://yinyanfr.github.io/comic-dl/en/guide/service-api/).
+
 [简体中文](README.md)
 
 `@comic-dl/copymanga` adds CopyManga to [comic-dl](https://github.com/yinyanfr/comic-dl). Search, list chapters, and download CBZ archives without signing in. Searches use `www.copy20.com`, and downloads use the “熱辣漫畫” Line 2 endpoint.

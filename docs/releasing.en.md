@@ -4,6 +4,8 @@
 
 From the repository root, bump the version of the extension you want to publish. For example, to bump Zerobyw's patch version:
 
+Publish the core first when changing the development contract. Development currently pins `comic-dl@4.0.0`. For future unpublished core changes, test with a local tarball but do not push extension version changes to trigger publishing until the required core installs publicly. Reconcile release entries with the actual npm UTC publication dates.
+
 ```sh
 npm version patch --workspace @comic-dl/zerobyw --no-git-tag-version
 ```

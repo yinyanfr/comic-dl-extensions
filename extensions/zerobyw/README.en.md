@@ -1,5 +1,7 @@
 # Zerobyw
 
+> Version `0.3.0` targets core 4.x: optional page-provided titles, authors, summaries, tags, and public covers, with direct chapters linked to canonical catalogs. Missing metadata is nonfatal. Images remain anonymous and Cookie origin binding is unchanged. See the [core API](https://yinyanfr.github.io/comic-dl/en/guide/service-api/) for tasks, naming, and migrations.
+
 [简体中文](README.md)
 
 `@comic-dl/zerobyw` adds Zerobyw to [comic-dl](https://github.com/yinyanfr/comic-dl). Public search works without signing in. Listing or downloading chapters requires an active Zerobyw session.

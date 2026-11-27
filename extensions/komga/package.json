@@ -1,6 +1,6 @@
 {
   "name": "@comic-dl/komga",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Komga source extension for comic-dl",
   "repository": {
     "type": "git",
