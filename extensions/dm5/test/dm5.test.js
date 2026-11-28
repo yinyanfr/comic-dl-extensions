@@ -10,6 +10,8 @@ import { env, execPath } from "node:process";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { sourceExtensionApi } from "comic-dl/extension";
+import adapter from "../dist/index.js";
 
 const exec = promisify(execFile);
 const require = createRequire(import.meta.url);
@@ -18,6 +20,98 @@ const cli = join(dirname(metadata), require(metadata).bin["comic-dl"]);
 const extension = fileURLToPath(new URL("../dist/index.js", import.meta.url));
 const dm5 = "https://www.dm5.com";
 const manhuaren = "https://www.manhuaren.com";
+
+test("Dm5 returns CSS catalog covers and search highlight covers without extra requests", async (t) => {
+  // Reduced from the public catalog and keyword page observed on 2026-11-28.
+  const catalog = await readFile(
+    new URL("./fixtures/catalog.html", import.meta.url),
+    "utf8",
+  );
+  const search = await readFile(
+    new URL("./fixtures/search.html", import.meta.url),
+    "utf8",
+  );
+  const fetch = t.mock.method(globalThis, "fetch", async (input, options) => {
+    const url = new URL(input);
+    assert.equal(url.origin, dm5);
+    assert.equal(new Headers(options.headers).has("cookie"), false);
+    return new Response(url.pathname === "/search" ? search : catalog);
+  });
+  const source = adapter.create(sourceExtensionApi);
+  const signal = new AbortController().signal;
+  const cover =
+    "https://mhfm6us.cdndm5.com/86/85227/20240313194401_180x240_20.jpg";
+  const result = {
+    title: "再婚皇后",
+    url: dm5 + "/manhua-zaihunhuanghou/",
+    coverUrl: cover,
+  };
+  assert.deepEqual((await source.search("", 1, signal)).results, [result]);
+  assert.deepEqual((await source.search("再婚皇后", 1, signal)).results, [
+    result,
+    {
+      title: "皇后",
+      url: dm5 + "/manhua-huanghou/",
+      coverUrl:
+        "https://mhfm9us.cdndm5.com/59/58292/20200316225939_180x240_22.jpg",
+    },
+  ]);
+  assert.equal(fetch.mock.callCount(), 2);
+});
+
+test("Dm5 accepts quoted CSS URLs and lazy images but rejects unsafe cover URLs", async (t) => {
+  let content;
+  t.mock.method(globalThis, "fetch", async () => new Response(content));
+  const source = adapter.create(sourceExtensionApi);
+  const signal = new AbortController().signal;
+  for (const [node, expected] of [
+    [
+      `<p class="mh-cover" style="color: red; background-image: url( 'https://images.example/cover.jpg' );"></p>`,
+      "https://images.example/cover.jpg",
+    ],
+    [
+      `<p class="mh-cover" style='BACKGROUND-IMAGE: url("//images.example/cover.jpg")'></p>`,
+      "https://images.example/cover.jpg",
+    ],
+    [
+      '<img data-src="https://images.example/lazy.jpg" src="/placeholder.gif">',
+      "https://images.example/lazy.jpg",
+    ],
+    [
+      '<img src="https://images.example/cover.jpg">',
+      "https://images.example/cover.jpg",
+    ],
+    [
+      '<p class="mh-cover" style="background-image: url(javascript:alert(1))"></p>',
+      undefined,
+    ],
+    [
+      '<p class="mh-cover" style="background-image: url(http://images.example/cover.jpg)"></p>',
+      undefined,
+    ],
+    [
+      '<p class="mh-cover" style="background-image: url(https://user:secret@images.example/cover.jpg)"></p>',
+      undefined,
+    ],
+    [
+      '<p class="mh-cover" style="background-image: url(https://images.example/cover.jpg?token=secret)"></p>',
+      undefined,
+    ],
+    [
+      '<p class="mh-cover" style="background-image: url(https://images.example/cover.jpg#secret)"></p>',
+      undefined,
+    ],
+    ["", undefined],
+  ]) {
+    content = `<ul class="mh-list"><li>${node}<h2 class="title">
+      <a href="/manhua-example/">Example</a></h2></li></ul>`;
+    assert.equal(
+      (await source.search("", 1, signal)).results[0].coverUrl,
+      expected,
+      node,
+    );
+  }
+});
 
 function mockFetch() {
   const dm5 = "https://www.dm5.com";

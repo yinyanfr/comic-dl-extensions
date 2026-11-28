@@ -2,6 +2,12 @@
 
 Each extension is versioned independently. Entries group packages released from the same commit; dates are npm publication dates in UTC. For future releases, list each affected package and its exact version. Keep changes that have not shipped in a package under **Unreleased**.
 
+## Catalog cover fixes — 2026-11-28
+
+- **`@comic-dl/zerobyw@0.3.1`:** Normalize HTTP cover URLs to HTTPS only for configured, trusted site/image origins before applying the existing cover validation. Fix both public catalogs and authenticated details without relaxing Cookie isolation, accepting arbitrary HTTP hosts, or adding per-series requests. Cover default/custom origins, explicit ports, HTTPS, and rejected unsafe URLs in offline tests. Fixes [#1](https://github.com/yinyanfr/comic-dl-extensions/issues/1).
+- **`@comic-dl/dm5@0.2.1`:** Extract catalog covers from `.mh-cover` inline `background-image` URLs; retain image/lazy-image parsing for search highlights. Add reduced real-page catalog/search fixtures and unsafe-URL regressions. No extra series requests are needed. Fixes [#2](https://github.com/yinyanfr/comic-dl-extensions/issues/2).
+- All 22 offline tests and workspace type checks pass. Anonymous live checks returned covers for 24/24 Zerobyw catalog results, 70/70 DM5 catalog results, and 22/22 DM5 keyword results; sampled HTTPS images returned `200 image/jpeg` without credentials or Referer headers. Authenticated Zerobyw details are covered by fixtures, not live-account validation.
+
 ## Metadata, protected covers, and canonical chapter context — 2026-11-28
 
 These versions target the public `comic-dl@4.0.0` backend APIs while retaining extension API v1.

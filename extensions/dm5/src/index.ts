@@ -290,12 +290,23 @@ function create(
         const link = href && identify(href);
         if (title && link?.kind === "series") {
           const canonical = seriesUrl(link.slug).href;
+          // Current catalog cards use a CSS background; search highlights use img.
+          // Read only the cover node's URL, never evaluate inline styles.
+          const style =
+            $(element).find(".mh-cover").first().attr("style") ?? "";
+          const background =
+            /(?:^|;)\s*background-image\s*:\s*url\(\s*(?:"([^"]*)"|'([^']*)'|([^'"\s()]+))\s*\)\s*(?:;|$)/i.exec(
+              style,
+            );
           results.set(canonical, {
             title,
             url: canonical,
             coverUrl: coverUrl(
               $(element).find("img").first().attr("data-src") ??
-                $(element).find("img").first().attr("src"),
+                $(element).find("img").first().attr("src") ??
+                background?.[1] ??
+                background?.[2] ??
+                background?.[3],
               url,
             ),
           });

@@ -4,6 +4,8 @@
 
 [English](README.en.md)
 
+`0.3.1` 修复目录与详情的 HTTP 封面：仅对已配置的受信任图片/站点 origin 安全升级为 HTTPS，不接受任意 HTTP 主机，不发送 Cookie，也不增加逐作品详情请求。
+
 `@comic-dl/zerobyw` 是 [comic-dl](https://github.com/yinyanfr/comic-dl) 的 Zerobyw 漫画源。公开搜索无需登录，列章和下载需要有效的 Zerobyw 登录会话。
 
 ## 使用

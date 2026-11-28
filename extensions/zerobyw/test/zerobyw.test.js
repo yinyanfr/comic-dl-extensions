@@ -49,6 +49,84 @@ function seriesHtml(cards, guest, includeMetadata = true) {
     </section>`;
 }
 
+test("Zerobyw normalizes only trusted HTTP covers in catalogs and authenticated details", async (t) => {
+  const saved = env.COMIC_DL_ZEROBYW_COOKIE;
+  const savedOrigin = env.COMIC_DL_ZEROBYW_COOKIE_ORIGIN;
+  t.after(() => {
+    if (saved === undefined) delete env.COMIC_DL_ZEROBYW_COOKIE;
+    else env.COMIC_DL_ZEROBYW_COOKIE = saved;
+    if (savedOrigin === undefined) delete env.COMIC_DL_ZEROBYW_COOKIE_ORIGIN;
+    else env.COMIC_DL_ZEROBYW_COOKIE_ORIGIN = savedOrigin;
+  });
+  env.COMIC_DL_ZEROBYW_COOKIE = cookie;
+  let cover;
+  const fetch = t.mock.method(globalThis, "fetch", async (input, options) => {
+    const url = new URL(input);
+    const headers = new Headers(options.headers);
+    if (url.pathname === "/pc/pc/") {
+      assert.equal(headers.has("cookie"), false);
+      return new Response(`<main><a href="/pc/details/?kuid=1">
+        <img loading="lazy" data-pc-cover-preload="1" src="${cover}">
+        <h3>Example</h3></a></main>`);
+    }
+    assert.equal(url.pathname, "/pc/details/");
+    assert.equal(headers.get("cookie"), cookie);
+    return new Response(`<meta property="og:image" content="${cover}">
+      ${seriesHtml([[2, "Second"]], false)}`);
+  });
+  for (const settings of [
+    {},
+    {
+      "site-url": "https://zero.example",
+      "image-url": "https://images.example",
+    },
+    { "image-url": "https://images.example:8443" },
+  ]) {
+    const origin = settings["site-url"] ?? site;
+    const imageOrigin = settings["image-url"] ?? cdn;
+    env.COMIC_DL_ZEROBYW_COOKIE_ORIGIN = origin;
+    const source = adapter.create(sourceExtensionApi, settings);
+    const cases = [
+      [imageOrigin + "/cover.jpg", imageOrigin + "/cover.jpg"],
+      [
+        imageOrigin.replace("https:", "http:") + "/cover.jpg",
+        imageOrigin.includes(":8443") ? undefined : imageOrigin + "/cover.jpg",
+      ],
+      [origin.replace("https:", "http:") + "/cover.jpg", origin + "/cover.jpg"],
+      ["/cover.jpg", origin + "/cover.jpg"],
+      [
+        "//" + new URL(imageOrigin).host + "/cover.jpg",
+        imageOrigin + "/cover.jpg",
+      ],
+      ["http://untrusted.example/cover.jpg", undefined],
+      ["https://untrusted.example/cover.jpg", undefined],
+      ["http://tupa.zerobyw33.com.evil.example/cover.jpg", undefined],
+      ["http://user:secret@" + new URL(origin).host + "/cover.jpg", undefined],
+      [origin + ":8080/cover.jpg", undefined],
+      [imageOrigin + "/cover.jpg?token=secret", undefined],
+      [imageOrigin + "/cover.jpg#secret", undefined],
+      ["data:image/png;base64,AAAA", undefined],
+    ];
+    if (settings["image-url"]) cases.push([cdn + "/cover.jpg", undefined]);
+    const before = fetch.mock.callCount();
+    for (const [value, expected] of cases) {
+      cover = value;
+      const signal = new AbortController().signal;
+      for (const query of ["", "example"]) {
+        const result = await source.search(query, 1, signal);
+        assert.equal(result.results[0].coverUrl, expected, value);
+      }
+      const result = await source.getSeries(
+        origin + "/pc/details/?kuid=1",
+        signal,
+      );
+      assert.equal(result.metadata.coverUrl, expected, value);
+    }
+    // Exactly one request per operation; covers never trigger per-work fetches.
+    assert.equal(fetch.mock.callCount() - before, cases.length * 3);
+  }
+});
+
 test("an old series link keeps its ID on a custom domain without forwarding the old Cookie", async (t) => {
   const settings = {
     "site-url": "https://zero.example",

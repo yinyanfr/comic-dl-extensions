@@ -4,6 +4,8 @@
 
 [简体中文](README.md)
 
+`0.2.1` fixes missing catalog covers by reading the current `.mh-cover` CSS background images while retaining keyword-search images and lazy-loading support, without per-series detail requests.
+
 `@comic-dl/dm5` adds DM5 and Manhuaren to [comic-dl](https://github.com/yinyanfr/comic-dl) as one source. It searches, lists, and downloads public chapters through the DM5 website and accepts series and chapter links from Manhuaren. The same chapter from either site uses the same CBZ in a given output directory. Chapters that require login or purchase are unsupported.
 
 ## Usage

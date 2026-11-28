@@ -4,6 +4,8 @@
 
 [简体中文](README.md)
 
+`0.3.1` fixes HTTP covers in catalogs and details by upgrading only configured, trusted image/site origins to HTTPS. Arbitrary HTTP hosts remain rejected; covers send no Cookie and require no additional per-series requests.
+
 `@comic-dl/zerobyw` adds Zerobyw to [comic-dl](https://github.com/yinyanfr/comic-dl). Public search works without signing in. Listing or downloading chapters requires an active Zerobyw session.
 
 ## Usage

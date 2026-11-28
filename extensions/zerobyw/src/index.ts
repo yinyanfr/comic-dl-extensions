@@ -123,7 +123,7 @@ function createZerobywSource(
   const readSiteUrl = (input: string, base: URL) =>
     siteUrl(input, base, [origin]);
   const coverUrl = (value: string | undefined) => {
-    const url = value && URL.parse(value, origin);
+    const url = value && siteUrl(value, new URL(origin), imageOrigins);
     return url &&
       imageOrigins.includes(url.origin) &&
       url.protocol === "https:" &&
